@@ -46,29 +46,56 @@ def query2df(_client, query):
 # 3. DATA FETCHING FUNCTIONS
 # ==========================================
 
-def fetch_fixtures():
+def fetch_fixtures(n_games_before, n_games_after):
     """
-    Fetches the last 5 rounds of fixtures and calculates match points.
+    Fetches n_games_before to n_games_after and calculates match points.
     """
     df = query2df(
         client,
-        """
+        f"""
         WITH
-            last_5_games AS (
-                SELECT DISTINCT 
-                    season, 
-                    round 
-                FROM `project-ceb11233-5e37-4a52-b27.public.fixtures_epl` 
-                WHERE home_score IS NOT NULL 
-                ORDER BY 1 DESC, 2 DESC 
-                LIMIT 5
+            teams AS (
+                SELECT
+                    team_code,
+                    MAX(team) team
+                FROM `project-ceb11233-5e37-4a52-b27.public.teams`
+                GROUP BY 1
+            ),
+            season_round AS (
+                SELECT
+                    season,
+                    round,
+                    MAX(home_score IS NOT NULL) is_played
+                FROM `project-ceb11233-5e37-4a52-b27.public.fixtures` 
+                GROUP BY 1, 2
+            ),
+            season_round_rn AS (
+                SELECT
+                    *,
+                    ROW_NUMBER() OVER (ORDER BY season, round) rn
+                FROM season_round
+            ),
+            season_round_ix AS (
+                SELECT
+                    *,
+                    rn - MAX(CASE WHEN is_played THEN rn ELSE 0 END) OVER () ix
+                FROM season_round_rn
             )
-        SELECT  
-            f.*
-        FROM `project-ceb11233-5e37-4a52-b27.public.fixtures_epl` f
-        INNER JOIN last_5_games f5
-            ON f.season = f5.season
-                AND f.round = f5.round
+        SELECT
+            f.*,
+            h.team home_team,
+            a.team away_team
+        FROM `project-ceb11233-5e37-4a52-b27.public.fixtures` f
+        LEFT JOIN teams h
+            ON f.home = h.team_code
+        LEFT JOIN teams a
+            ON f.away = a.team_code
+        INNER JOIN season_round_ix s 
+            ON f.season = s.season
+                AND f.round = s.round
+        WHERE
+            s.ix > {n_games_before}
+            AND s.ix <= {n_games_after}
         ORDER BY
             id
         """
@@ -76,7 +103,7 @@ def fetch_fixtures():
     
     # --- Feature Engineering ---
     # Create readable fixture names and score strings
-    df["Fixture"] = df["home"] + " vs. " + df["away"]
+    df["Fixture"] = df["home_team"] + " vs. " + df["away_team"]
     df["Score"] = df["home_score"].astype(str) + " - " + df["away_score"].astype(str)
     
     # Identify the winner for point calculation
@@ -113,8 +140,18 @@ def fetch_params(trial="final"):
         f"""
         SELECT  
             *
-        FROM `project-ceb11233-5e37-4a52-b27.public.params_epl`
+        FROM `project-ceb11233-5e37-4a52-b27.public.params`
         WHERE
             trial = '{trial}'
         """
     )
+    
+def push_prediction(data):
+    client = bigquery.Client()
+    table_id = "project-ceb11233-5e37-4a52-b27.public.predictions"
+    
+    rows_to_insert = [data]
+    
+    errors = client.insert_rows_json(table_id, rows_to_insert)
+    if errors != []:
+        raise Exception(f"BigQuery Insert Errors: {errors}")
