@@ -18,7 +18,7 @@ st.set_page_config(page_title="Stochastic Match Engine", layout="wide")
 
 # Fetch initial fixtures and model parameters from BigQuery
 fixtures = db.fetch_fixtures(-5, 1)
-params = db.fetch_params(trial="p5")[0]
+params = db.fetch_params(at_start_of="GW20")[0]
 
 # Pre-calculate Expected Points (xP) for all historical fixtures
 # This allows us to compare actual performance vs. model expectations in the history tables
@@ -35,6 +35,8 @@ fixtures.loc[:, ['home_xP', 'away_xP']] = fixtures.apply(
     axis=1,
     result_type='expand'
 ).values
+
+predictions = db.fetch_predictions(season=fixtures_next.season.values[0], gw=fixtures_next['round'].values[0])
 
 # Dynamic UI Scaling: Calculate slider ranges based on current data distribution
 elos = [int(v) for k, v in params.items() if 'elo' in k]
@@ -177,18 +179,18 @@ def apply_custom_theme(mode):
             """, unsafe_allow_html=True)
     else:
         # DARK MODE: Right Panel Dark Grey, Main Dark
-        st.markdown("""
+        st.markdown(f"""
             <style>
             /* Text Colors */
-            h1, h2, h3, p, span {
+            h1, h2, h3, p, span {{
                 color: white;
-            }
+            }}
             /* Main Background (Dark) */
-            .stApp {
+            .stApp {{
                 background-color: #0E1117;
                 color: #fafafa;
-            }
-            [data-testid="column"]:nth-child(1) {
+            }}
+            [data-testid="column"]:nth-child(1) {{
                 background-color: #F0F2F6 !important;
                 padding: 2rem !important;
                 min-height: 100vh !important;
@@ -196,49 +198,73 @@ def apply_custom_theme(mode):
                 /* This ensures the color stretches to the edges */
                 margin-top: -2rem !important; 
                 margin-bottom: -2rem !important;
-            }
-            [data-testid="column"]:nth-of-type(2) [data-testid="stHorizontalBlock"] {
+            }}
+            [data-testid="column"]:nth-of-type(2) [data-testid="stHorizontalBlock"] {{
                 padding: 0px !important;
-            }
+            }}
             
             /* Right Side Column Simulation (Using a container or specific div if possible) */
             /* Note: We target the specific widgets inside the right column */
             
-            /* Dataframe & Table Background matching dark theme */
-            [data-testid="stTable"], [data-testid="stDataFrame"] {
-                background-color: #161B22;
-                border: 1px solid #30363D;
-            }
-            
             /* Lock in Prediction Button: Background Neon/White, Text Black */
-            div.stButton > button {
+            div.stButton > button {{
                 background-color: #00FFCC; /* Neon Teal */
                 border: None;
-            }
-            div.stButton > button p {
+            }}
+            div.stButton > button p {{
                 color: black;
                 font-weight: bold;
-            }
+            }}
             
             /* Username Input Box: Slightly Transparent White */
-            div[data-testid="stTextInput"] input {
+            div[data-testid="stTextInput"] input {{
                 background-color: rgba(255, 255, 255, 0.1) !important;
                 color: black;
                 border: 1px solid rgba(255, 255, 255, 0.2);
-            }
+            }}
             
-            .stMetric { 
+            .stMetric {{ 
                 background-color: #161b22; 
                 border: 1px solid #30363d; 
                 border-radius: 8px; 
                 padding: 10px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            }
+            }}
             
             /* Metric and Chart Text Colors */
-            [data-testid="stMetricValue"] {
+            [data-testid="stMetricValue"] {{
                 color: #00FFCC;
-            }
+            }}
+            
+            /* Color the slider track to show 3 zones (Teal, Grey, Red) */
+            /* Target the slider track container */
+            div.stSlider > div[data-baseweb="slider"] > div > div {{
+                    background: linear-gradient(to right, 
+                        #FF4B4B 0%, #FF4B4B {bound_1}%, 
+                        #808080 {bound_1}%, #808080 {bound_2}%, 
+                        #007BFF {bound_2}%, #007BFF 100%) !important;
+                }}
+                
+            div[data-testid="stSlider"] label {{
+                    display: none !important;
+                    visibility: hidden !important;
+                }}
+            div[data-testid="stSlider"] [data-baseweb="slider"] div {{
+                    font-size: 0px !important;
+                    color: transparent !important;
+                }}
+
+            /* Optional: Style the knobs to be white so they pop against the colors */
+            div.stSlider [role="slider"] {{
+                background-color: white !important;
+                border: 2px solid #31333F !important;
+            }}
+            
+            div[data-baseweb="tooltip"] div, 
+                div[data-baseweb="tooltip"] p {{
+                    color: black !important;
+                    background-color: white !important;
+                }}
             </style>
             """, unsafe_allow_html=True)
         
@@ -259,8 +285,6 @@ def on_mode_change():
         # selected fixture in the selectbox
         st.session_state.match_selector = fixtures_next['display_name'].values[0]
         sync_fixture()
-        
-    apply_custom_theme(new_mode)
         
 def sync_fixture():
     """
@@ -303,7 +327,7 @@ if "app_mode_sync" not in st.session_state:
 # We define the columns. If in Prediction Mode, we use a wide middle and a right column.
 if st.session_state.app_mode_sync == "Prediction Mode":
     # Layout: Main Center (75%) and Right Sidebar (25%)
-    left_col, main_col = st.columns([1, 4], gap="small")
+    left_col, main_col = st.columns([1, 2], gap="small")
 elif st.session_state.app_mode_sync == "Free Play Mode":
     main_col, right_col = st.columns([4, 1], gap="small")
     # right_col = None
@@ -311,7 +335,6 @@ elif st.session_state.app_mode_sync == "Free Play Mode":
 with main_col:
     app_mode = st.session_state.app_mode_sync
     app_mode = st.radio("Select Mode:", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
-    apply_custom_theme(app_mode)
     
 home_team = st.session_state.home_sync
 away_team = st.session_state.away_sync
@@ -352,41 +375,86 @@ if app_mode == "Prediction Mode":
         
         # Fixture Selection
         fx = st.selectbox("Select Official Fixture", options=fixtures_next['display_name'].tolist(), key="match_selector", on_change=sync_fixture)
-        home_team = fx.split(" ")[1]
+        home_team = fx.split(" ")[1]        
+        h_elo = int(params[f"elo_{home_team}"])
+        h_sigma = int(params[f"sigma_{home_team}"])
+        h_form = int(params[f"form_{home_team}"])
+        h_hfa = int(params[f"hfa_{home_team}"])
+
         away_team = fx.split(" ")[3]
+        a_elo = int(params[f"elo_{away_team}"])
+        a_sigma = int(params[f"sigma_{away_team}"])
+        a_form = int(params[f"form_{away_team}"])
         
-        with st.expander(f"{home_team} Adjustments", expanded=True):
-            h_elo = st.slider(f"Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{home_team}"]), key="pm_h_elo")
-            h_sigma = st.slider(f"Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{home_team}"]), key="pm_h_sigma")
-            h_form = st.slider(f"Form (Momentum)", -min_max_form, min_max_form, value=int(params[f"form_{home_team}"]), key="pm_h_form")
-            h_hfa = st.slider(f"Home Field Advantage", 0, max_hfa, value=int(params[f"hfa_{home_team}"]), key="pm_h_hfa")
+        # --- Replacement for the Adjustment Expanders ---
+        st.caption("Drag the handles to define Win, Draw, and Loss zones")
+
+        # Define the range (0% to 100%)
+        thresholds = list(range(0, 101))
+
+        lab1, lab2, lab3 = st.columns(3)
+
+        with lab1:
+            lab1_slot = st.empty()
+
+        with lab2:
+            lab2_slot = st.empty()
+
+        with lab3:
+            lab3_slot = st.empty()
         
-        with st.expander(f"{away_team} Adjustments", expanded=True):
-            a_elo = st.slider(f"Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{away_team}"]), key="pm_a_elo")
-            a_sigma = st.slider(f"Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{away_team}"]), key="pm_a_sigma")
-            a_form = st.slider(f"Form (Momentum)", -min_max_form, min_max_form, value=int(params[f"form_{away_team}"]), key="pm_a_form")
+        # We default it to roughly 33% and 66% splits
+        bound_1, bound_2 = st.select_slider(
+            "Win | Draw | Loss",
+            options=thresholds,
+            value=(35, 65),
+            help="First handle: Home Win threshold. Second handle: Away Win threshold."
+        )
+
+        # Derive probabilities from the boundaries
+        p_win_pred = bound_1 / 100
+        p_draw_pred = (bound_2 - bound_1) / 100
+        p_loss_pred = (100 - bound_2) / 100
+        
+        # Add labels to sliders
+        lab1_slot.markdown(f"""
+            <div style='text-align: left; margin-bottom: -25px;'>
+                <p style='color: #FF4B4B; font-weight: bold; margin: 0; line-height: 1.2;'>
+                    {home_team}<br>
+                    <span style='font-size: 0.9em; opacity: 0.9;'>{p_win_pred*100:.0f}%</span>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        lab2_slot.markdown(f"""
+            <div style='text-align: center; margin-bottom: -25px;'>
+                <p style='color: #808080; font-weight: bold; margin: 0; line-height: 1.2;'>
+                    Draw<br>
+                    <span style='font-size: 0.9em; opacity: 0.9;'>{p_draw_pred*100:.0f}%</span>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        lab3_slot.markdown(f"""
+            <div style='text-align: right; margin-bottom: -25px;'>
+                <p style='color: #007BFF; font-weight: bold; margin: 0; line-height: 1.2;'>
+                    {away_team}<br>
+                    <span style='font-size: 0.9em; opacity: 0.9;'>{p_loss_pred*100:.0f}%</span>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        st.dataframe(
+            predictions[['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home']].sort_values(['home', 'p_win_home', 'p_draw_home'], ascending=[True, False, True]), 
+            use_container_width=True, 
+            hide_index=True,
+            # height=250
+        )
 
         if lock_button:
-            # CHECK 1: Have parameters changed?
-            has_adjustment = (
-                h_elo != int(params[f"elo_{home_team}"]) or
-                h_sigma != int(params[f"sigma_{home_team}"]) or
-                h_form != int(params[f"form_{home_team}"]) or
-                h_hfa != int(params[f"hfa_{home_team}"]) or
-                a_elo != int(params[f"elo_{away_team}"]) or
-                a_sigma != int(params[f"sigma_{away_team}"]) or
-                a_form != int(params[f"form_{away_team}"])
-            )
-
-            if not has_adjustment:
-                message_slot.warning("⚠️ You have to adjust params to make your own predictions!")
-            elif not user_id.strip():
+            if not user_id.strip():
                 message_slot.error("👤 Please enter a username.")
             else:
-                # SUCCESS: Prepare data and push to BQ
-                mu_h_pred, mu_a_pred, p_win_pred, p_draw_pred, p_loss_pred = get_dynamic_drift(
-                    h_elo, a_elo, h_sigma, a_sigma, h_hfa, h_form, a_form
-                )
                 sync_fixture()
                 prediction_data = {
                     "prediction_id": f"{fixture_id_sync}_{user_id}",
@@ -396,6 +464,7 @@ if app_mode == "Prediction Mode":
                     "p_draw_home": p_draw_pred,
                     "p_loss_home": p_loss_pred,
                     "created_utc": pd.Timestamp.now(tz='UTC').isoformat(),
+                    "source": "user",
                     "data_load_date": pd.Timestamp.utcnow().date().isoformat()
                 }
                 
@@ -407,7 +476,8 @@ if app_mode == "Prediction Mode":
                 except Exception as e:
                     message_slot.error(f"Encountered error, prediction not locked.")
                     st.error(f"Error connecting to BigQuery: {e}")
-                    # add logging error
+
+apply_custom_theme(app_mode)
 # ==========================================
 # 5. DATA TABLES: HISTORICAL PERFORMANCE
 # ==========================================

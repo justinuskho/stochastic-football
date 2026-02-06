@@ -130,7 +130,7 @@ def fetch_fixtures(n_games_before, n_games_after):
     return df
 
 
-def fetch_params(trial="final"):
+def fetch_params(at_start_of="GW25"):
     """
     Retrieves the Elo, Sigma, and Form parameters for the simulation.
     The 'trial' parameter allows switching between different model calibrations.
@@ -142,7 +142,30 @@ def fetch_params(trial="final"):
             *
         FROM `project-ceb11233-5e37-4a52-b27.public.params`
         WHERE
-            trial = '{trial}'
+            at_start_of = '{at_start_of}'
+        """
+    )
+    
+def fetch_predictions(season, gw):
+    """
+    Retrieves the Elo, Sigma, and Form parameters for the simulation.
+    The 'trial' parameter allows switching between different model calibrations.
+    """
+    return query2df(
+        client,
+        f"""
+        SELECT  
+            user,
+            fixture_id,
+            SPLIT(fixture_id, '_')[SAFE_OFFSET(2)] AS home,
+            SPLIT(fixture_id, '_')[SAFE_OFFSET(3)] AS away,
+            MAX_BY(p_win_home, created_utc) p_win_home,
+            MAX_BY(p_draw_home, created_utc) p_draw_home,
+            MAX_BY(p_loss_home, created_utc) p_loss_home
+        FROM `project-ceb11233-5e37-4a52-b27.public.predictions`
+        WHERE
+            prediction_id LIKE '{season}_{gw}%'
+        GROUP BY 1, 2, 3, 4
         """
     )
     
