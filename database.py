@@ -147,7 +147,6 @@ def fetch_params(trial="final"):
     )
     
 def push_prediction(data):
-    client = bigquery.Client()
     table_id = "project-ceb11233-5e37-4a52-b27.public.predictions"
     
     rows_to_insert = [data]
