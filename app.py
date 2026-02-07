@@ -193,34 +193,6 @@ def apply_custom_theme(mode):
                 color: #fafafa;
             }}
 
-            /* 2. Responsive Column 1 (The Sidebar/Left Panel) */
-            /* We only apply the 100vh and specific padding if we are on Desktop */
-            @media (min-width: 768px) {{
-                [data-testid="column"]:nth-of-type(1) {{
-                    background-color: #F0F2F6 !important;
-                    padding: 2rem !important;
-                    min-height: 100vh !important;
-                    border-right: 1px solid #DDE1E6 !important; /* Changed from left to right */
-                    margin-top: -6rem !important; /* Adjust for Streamlit top padding */
-                }}
-                /* Keep text readable in the light column on desktop */
-                [data-testid="column"]:nth-of-type(1) p, 
-                [data-testid="column"]:nth-of-type(1) h1,
-                [data-testid="column"]:nth-of-type(1) h2 {{
-                    color: #31333F !important;
-                }}
-            }}
-
-            /* Mobile adjustments for Column 1 */
-            @media (max-width: 767px) {{
-                [data-testid="column"]:nth-of-type(1) {{
-                    background-color: #161b22 !important; /* Darker for mobile top stack */
-                    padding: 1rem !important;
-                    min-height: auto !important;
-                    border-bottom: 2px solid #00FFCC !important;
-                }}
-            }}
-
             /* 3. Buttons & Inputs */
             div.stButton > button {{
                 background-color: #00FFCC !important;
@@ -235,19 +207,8 @@ def apply_custom_theme(mode):
             /* Input text color fix (Ensuring contrast) */
             div[data-testid="stTextInput"] input {{
                 background-color: rgba(255, 255, 255, 0.1) !important;
-                color: white !important; 
+                color: black !important; 
                 border: 1px solid rgba(255, 255, 255, 0.2);
-            }}
-
-            /* 4. Metrics */
-            .stMetric {{ 
-                background-color: #161b22; 
-                border: 1px solid #30363d; 
-                border-radius: 8px; 
-                padding: 10px;
-            }}
-            [data-testid="stMetricValue"] {{
-                color: #00FFCC !important;
             }}
 
             /* 5. Slider Customization */
@@ -273,27 +234,54 @@ def apply_custom_theme(mode):
             div[data-testid="stSlider"] [data-baseweb="slider"] div {{
                 font-size: 0px !important;
             }}
-
-            /* 6. Chart Container - More mobile friendly than :has() */
-            /* Target the container specifically via your 'leaderchart' key */
-            div[id*="leaderchart"] {{
-                border: 2px solid #00FFCC;
-                border-radius: 15px;
-                padding: 5px;
-                background-color: rgba(0, 0, 0, 0.2);
-            }}
-
-            /* Force Plotly text to white */
-            div[data-testid="stPlotlyChart"] text {{
-                fill: white !important;
-            }}
             
             /* Ensure tooltips are readable */
             div[data-baseweb="tooltip"] {{
-                background-color: white !important;
+                background-color: black !important;
                 color: black !important;
             }}
+            
+            /* Target the sidebar section using role (more stable than testid) */
+            section[role="complementary"] {{
+                background-color: #0E1117 !important;
+                border-right: 1px solid #30363d !important;
+            }}
 
+            /* Target the mobile overlay (scrim) when sidebar is open */
+            div[data-baseweb="overlay"] {{
+                background-color: rgba(0, 0, 0, 0.8) !important;
+                backdrop-filter: blur(2px);
+            }}
+
+            # /* 2. Sidebar Internal Styling (Anchored to your custom ID) */
+            # #sidebar label, #sidebar p, #sidebar span {{
+            #     color: #FFFFFF !important;
+            # }}
+
+            # #sidebar div[role="combobox"], #sidebar input {{
+            #     background-color: #161b22 !important;
+            #     color: white !important;
+            #     border: 1px solid #30363d !important;
+            # }}
+
+            # #sidebar button {{
+            #     background-color: #00FFCC !important;
+            #     color: black !important;
+            #     font-weight: bold !important;
+            #     width: 100% !important;
+            #     border: none !important;
+            #     box-shadow: 0 4px 12px rgba(0, 255, 204, 0.2);
+            # }}
+            
+            section[data-testid="stSidebar"] {{
+                padding-top: 1rem;
+                background-color: rgba(0,0,0,0.8);
+            }}
+
+            /* 7. Hide the default Streamlit Header for a cleaner mobile look */
+            header {{
+                background-color: rgba(0,0,0,0) !important;
+            }}
             </style>
             """, unsafe_allow_html=True)
         
@@ -354,25 +342,20 @@ if "app_mode_sync" not in st.session_state:
 
 # --- 3. LAYOUT DEFINITION ---
 # We define the columns. If in Prediction Mode, we use a wide middle and a right column.
-if st.session_state.app_mode_sync == "Prediction Mode":
-    # Layout: Main Center (75%) and Right Sidebar (25%)
-    left_col, main_col = st.columns([1, 4], gap="small")
-elif st.session_state.app_mode_sync == "Free Play Mode":
-    main_col, right_col = st.columns([4, 1], gap="small")
-    # right_col = None
     
-with main_col:
-    app_mode = st.session_state.app_mode_sync
-    app_mode = st.radio("Select Mode:", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
+app_mode = st.session_state.app_mode_sync
+app_mode = st.radio("Select Mode:", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
     
 home_team = st.session_state.home_sync
 away_team = st.session_state.away_sync
 
 # --- 4. LEFT SIDEBAR (Free Play only) ---
 
-if app_mode == "Free Play Mode":
-    # Call this immediately after your app_mode selection
-    with right_col:
+with st.sidebar:
+    st.markdown('<div id="sidebar">', unsafe_allow_html=True)
+    
+    if app_mode == "Free Play Mode":
+        # Call this immediately after your app_mode selection
         st.subheader("Free Play Mode")
         home_team = st.selectbox("Home Team", TEAMS, key="home_sync")
 
@@ -389,13 +372,13 @@ if app_mode == "Free Play Mode":
             a_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{away_team}"]), key="fs_a_sigma")
             a_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{away_team}"]), key="fs_a_form")
 
-# --- 5. RIGHT SIDEBAR (The "Fake" Column) ---
-if app_mode == "Prediction Mode":
-    if "fixture_id_sync" not in st.session_state:
-        st.session_state.fixture_id_sync = fixtures_next['id'].values[0]
-    fixture_id_sync = st.session_state.fixture_id_sync
+    # --- 5. RIGHT SIDEBAR (The "Fake" Column) ---
+    if app_mode == "Prediction Mode":
+        if "fixture_id_sync" not in st.session_state:
+            st.session_state.fixture_id_sync = fixtures_next['id'].values[0]
+        fixture_id_sync = st.session_state.fixture_id_sync
+            
         
-    with left_col:
         st.subheader("Prediction Panel")
         
         user_id = st.text_input("Username")
@@ -486,6 +469,8 @@ if app_mode == "Prediction Mode":
             """)
         
         st.markdown("---")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 apply_custom_theme(app_mode)
 
@@ -543,7 +528,7 @@ def plot_matchup(h_name, a_name, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form,
     fig.update_layout(
         autosize=True,
         height=None,
-        margin=dict(l=10, r=10, t=30, b=10),
+        # margin=dict(l=10, r=10, t=30, b=10),
         xaxis_title="Matchday Performance (ELO)", 
         template=template,
         hovermode="x unified",
@@ -614,27 +599,35 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
             )
 
     fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)', # Transparent background
+        plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
+    
+        # This is the key: Force all text to white
+        font=dict(color="white"), 
         title=dict(
             text=f"<b>{window}-Week Trailing Score</b><br><sup>Lower is Better</sup>",
-            font=dict(size=18)
+            font=dict(size=18, color='white')
         ),
         xaxis=dict(
             title="Gameweek", 
-            showgrid=False,
+            # showgrid=False,
+            title_font=dict(color='white'),
+            tickfont=dict(color='white'),
+            gridcolor='#333', # Darker grid lines
             zeroline=False  # Removes the heavy line at the start
         ),
         yaxis=dict(
             title="Avg Weighted Log-Loss", 
             showgrid=True, 
             gridcolor='#333',
-            zeroline=False
+            zeroline=False,
+            title_font=dict(color='white'),
+            tickfont=dict(color='white'),
         ),
-        template="plotly_dark",
         # margin=dict(l=50, r=150, t=100, b=50), # Explicitly padding all sides
         autosize=True,
         hovermode="x unified",
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
         # Let the template handle font color unless you have a custom hex
         legend=dict(
             bgcolor='rgba(0,0,0,0)',
@@ -642,184 +635,186 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
             yanchor="bottom",
             y=1.02,
             xanchor="right",
-            x=1
+            x=1,
+            font=dict(color='white')
         )
     )
 
     return fig
 
-with main_col:
-    if app_mode == 'Free Play Mode':
-        st.markdown("#### Match Outcome Probabilities")
-        p1, p2, p3 = st.columns(3)
-        p1.metric(f"{home_team} Win", f"{p_win:.1%}")
-        p2.metric("Draw", f"{p_draw:.1%}")
-        p3.metric(f"{away_team} Win", f"{p_loss:.1%}")
-        
-        st.markdown("---")
 
-        # Visual Distribution Plot: Performance Overlap
-        st.markdown(f"#### Head-to-Head ELO Distribution: {home_team} (H) vs {away_team} (A)")
+if app_mode == 'Free Play Mode':
+    st.markdown("#### Match Outcome Probabilities")
+    p1, p2, p3 = st.columns(3)
+    p1.metric(f"{home_team} Win", f"{p_win:.1%}")
+    p2.metric("Draw", f"{p_draw:.1%}")
+    p3.metric(f"{away_team} Win", f"{p_loss:.1%}")
+    
+    st.markdown("---")
 
-        st.plotly_chart(plot_matchup(home_team, away_team, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form, h_hfa), use_container_width=True)
+    # Visual Distribution Plot: Performance Overlap
+    st.markdown(f"#### Head-to-Head ELO Distribution: {home_team} (H) vs {away_team} (A)")
 
-        st.markdown("---")
+    st.plotly_chart(plot_matchup(home_team, away_team, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form, h_hfa), use_container_width=True)
 
-        st.markdown("#### Team's Past 5 Games:")
-        c1, c2 = st.columns(2)
+    st.markdown("---")
 
-        # Home History Table
-        with c1:
-            st.caption(f"{home_team}'s Past 5 Games:")
-            home_fixtures['Pts'] = np.select(
-                [home_fixtures['home']==home_team],
-                [home_fixtures['home_point']], home_fixtures['away_point']
-            )
-            home_fixtures['xPts'] = np.select(
-                [home_fixtures['home']==home_team],
-                [home_fixtures['home_xP']], home_fixtures['away_xP']
-            ).round(1)
-            home_fixtures['Pts (xPts)'] = home_fixtures.apply(
-                lambda row: f"{row['Pts']} ({row['xPts']})",
-                axis=1
-            )
-            st.dataframe(
-                home_fixtures[["Fixture", "Score", "Result", "Pts (xPts)"]], 
-                use_container_width=True, 
-                hide_index=True,
-                # height=250
-            )
+    st.markdown("#### Team's Past 5 Games:")
+    c1, c2 = st.columns(2)
 
-        # Away History Table
-        with c2:
-            st.caption(f"{away_team}'s Past 5 Games:")
-            away_fixtures['Pts'] = np.select(
-                [away_fixtures['away']==away_team],
-                [away_fixtures['away_point']], away_fixtures['home_point']
-            )
-            away_fixtures['xPts'] = np.select(
-                [away_fixtures['away']==away_team],
-                [away_fixtures['away_xP']], away_fixtures['home_xP']
-            ).round(1)
-            away_fixtures['Pts (xPts)'] = away_fixtures.apply(
-                lambda row: f"{row['Pts']} ({row['xPts']})",
-                axis=1
-            )
-            st.dataframe(
-                away_fixtures[["Fixture", "Score", "Result", "Pts (xPts)"]], 
-                use_container_width=True, 
-                hide_index=True
-            )
-            
-        st.markdown("---")
-        st.markdown("### stochastic-football-v1")
-
-        # Link to Kaggle
-        st.markdown(
-            """
-            *A deep dive into the Bayesian-Elo logic and engine architecture. 13 years of PL historical data and Optuna hyperparameter tuning.*
-            
-            **Data Modeling & Backtesting**: 
-            [notebook](https://www.kaggle.com/code/justinus/stochastic-football)  
-            """, 
-            unsafe_allow_html=True
+    # Home History Table
+    with c1:
+        st.caption(f"{home_team}'s Past 5 Games:")
+        home_fixtures['Pts'] = np.select(
+            [home_fixtures['home']==home_team],
+            [home_fixtures['home_point']], home_fixtures['away_point']
+        )
+        home_fixtures['xPts'] = np.select(
+            [home_fixtures['home']==home_team],
+            [home_fixtures['home_xP']], home_fixtures['away_xP']
+        ).round(1)
+        home_fixtures['Pts (xPts)'] = home_fixtures.apply(
+            lambda row: f"{row['Pts']} ({row['xPts']})",
+            axis=1
+        )
+        st.dataframe(
+            home_fixtures[["Fixture", "Score", "Result", "Pts (xPts)"]], 
+            use_container_width=True, 
+            hide_index=True,
+            # height=250
         )
 
-        # Link to Article/Technical Narrative
-        st.markdown(
-            """
-            **Technical Narrative**:
-            [kaggle](https://www.kaggle.com/writeups/justinus/stochastic-football) | [linkedin](https://www.linkedin.com/pulse/stochastic-football-justinus-kho-a3hpf/) | [medium](https://medium.com/@justinus.jx/stochastic-football-c2a44c6d856d)
-            """
+    # Away History Table
+    with c2:
+        st.caption(f"{away_team}'s Past 5 Games:")
+        away_fixtures['Pts'] = np.select(
+            [away_fixtures['away']==away_team],
+            [away_fixtures['away_point']], away_fixtures['home_point']
         )
-    elif app_mode == 'Prediction Mode':
-        prediction_losses = calculate_prediction_losses(
-                predictions_list=\
-                    predictions.sort_values('created_utc', ascending=False).drop_duplicates('prediction_id', keep='first')[['fixture_id', 'user', 'p_win_home', 'p_draw_home', 'p_loss_home']].values.tolist() +\
-                        [[f[0], 'engine', f[1], f[2], f[3]] for f in fixtures[['id', 'p_win', 'p_draw', 'p_loss']].values.tolist()], 
-                results_dict=\
-                    fixtures[['id', 'home_point']].set_index('id', drop=True).transpose().to_dict()
+        away_fixtures['xPts'] = np.select(
+            [away_fixtures['away']==away_team],
+            [away_fixtures['away_xP']], away_fixtures['home_xP']
+        ).round(1)
+        away_fixtures['Pts (xPts)'] = away_fixtures.apply(
+            lambda row: f"{row['Pts']} ({row['xPts']})",
+            axis=1
         )
-
-        agg_losses_, penalty = calculate_aggregate_losses(prediction_losses, null_guess_probability=null_guess_probability)
-        agg_losses = pd.DataFrame(
-            columns=['gameweek', 'user', 'total_loss', 'n_preds', 'weighted_loss'],
-            data=agg_losses_
+        st.dataframe(
+            away_fixtures[["Fixture", "Score", "Result", "Pts (xPts)"]], 
+            use_container_width=True, 
+            hide_index=True
         )
         
-        st.plotly_chart(
-            plot_performance_moving_avg(agg_losses, window=2), 
-            use_container_width=True,
-            key='leaderchart'
+    st.markdown("---")
+    st.markdown("### stochastic-football-v1")
+
+    # Link to Kaggle
+    st.markdown(
+        """
+        *A deep dive into the Bayesian-Elo logic and engine architecture. 13 years of PL historical data and Optuna hyperparameter tuning.*
+        
+        **Data Modeling & Backtesting**: 
+        [notebook](https://www.kaggle.com/code/justinus/stochastic-football)  
+        """, 
+        unsafe_allow_html=True
+    )
+
+    # Link to Article/Technical Narrative
+    st.markdown(
+        """
+        **Technical Narrative**:
+        [kaggle](https://www.kaggle.com/writeups/justinus/stochastic-football) | [linkedin](https://www.linkedin.com/pulse/stochastic-football-justinus-kho-a3hpf/) | [medium](https://medium.com/@justinus.jx/stochastic-football-c2a44c6d856d)
+        """
+    )
+elif app_mode == 'Prediction Mode':
+    prediction_losses = calculate_prediction_losses(
+            predictions_list=\
+                predictions.sort_values('created_utc', ascending=False).drop_duplicates('prediction_id', keep='first')[['fixture_id', 'user', 'p_win_home', 'p_draw_home', 'p_loss_home']].values.tolist() +\
+                    [[f[0], 'engine', f[1], f[2], f[3]] for f in fixtures[['id', 'p_win', 'p_draw', 'p_loss']].values.tolist()], 
+            results_dict=\
+                fixtures[['id', 'home_point']].set_index('id', drop=True).transpose().to_dict()
+    )
+
+    agg_losses_, penalty = calculate_aggregate_losses(prediction_losses, null_guess_probability=null_guess_probability)
+    agg_losses = pd.DataFrame(
+        columns=['gameweek', 'user', 'total_loss', 'n_preds', 'weighted_loss'],
+        data=agg_losses_
+    )
+    
+    st.markdown('<div id="leaderchart">', unsafe_allow_html=True)
+    st.plotly_chart(
+        plot_performance_moving_avg(agg_losses, window=2), 
+        use_container_width=True
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2)
+    
+    with c1:
+        st.markdown("##### Accepted Predictions:")
+        
+        if 'predictions_user' not in st.session_state:
+            st.session_state.predictions_user = pd.DataFrame(columns=['prediction_id', 'user', 'fixture_id', 'p_win_home', 'p_draw_home', 'p_loss_home', 'created_utc', 'source', 'data_load_date', 'home', 'away'])
+        
+        if lock_button:
+            if not user_id.strip():
+                message_slot.error("👤 Please enter a username.")
+            elif user_id.strip() in market_suppliers:
+                message_slot.error("❌ Invalid username.")
+            else:
+                sync_fixture()
+                prediction_data = {
+                    "prediction_id": f"{fixture_id_sync}_{user_id}",
+                    "user": user_id,
+                    "fixture_id": fixture_id_sync,
+                    "p_win_home": p_win_pred,   # These come from the calculation in main_col
+                    "p_draw_home": p_draw_pred,
+                    "p_loss_home": p_loss_pred,
+                    "created_utc": pd.Timestamp.now(tz='UTC').isoformat(),
+                    "source": "user",
+                    "data_load_date": pd.Timestamp.utcnow().date().isoformat()
+                }
+                
+                new_prediction = pd.DataFrame([prediction_data])
+                new_prediction[['home', 'away']] = new_prediction['fixture_id'].str.split("_", expand=True).iloc[:, [2, 3]]
+                
+                st.session_state.predictions_user = pd.concat(
+                    [st.session_state.predictions_user, new_prediction], 
+                    ignore_index=True
+                )
+                
+                # Assuming you have a function in database.py called push_prediction
+                try:
+                    db.push_prediction(prediction_data)
+                    message_slot.success(f"✅ Prediction locked for {user_id}!")
+                    st.balloons()
+                except Exception as e:
+                    message_slot.error(f"Encountered error, prediction not locked.")
+                    st.error(f"Error connecting to BigQuery: {e}")
+        
+        predictions_combined = pd.concat([
+                    predictions_next.loc[~predictions_next['source'].isin(market_suppliers), ['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home', 'created_utc', 'prediction_id',]],
+                    st.session_state.predictions_user[['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home', 'created_utc', 'prediction_id']]
+                ]).sort_values(['created_utc'], ascending=False).drop_duplicates(['prediction_id'], keep='first')\
+                    .sort_values(['home', 'p_win_home', 'p_draw_home'], ascending=[True, False, True])\
+                        [['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home']]
+        
+        st.dataframe(
+            predictions_combined,
+            use_container_width=True, 
+            hide_index=True,
+            # height=250
         )
+    with c2:
+        st.markdown("##### Leaderboard (All Time):")
         
-        c1, c2 = st.columns(2)
+        leaderboard = pd.DataFrame(
+            columns=['score'], 
+            data=agg_losses.groupby('user')['weighted_loss'].sum()/ agg_losses.groupby('user')['gameweek'].nunique()
+        ).sort_values(['score'])
         
-        with c1:
-            st.markdown("##### Accepted Predictions:")
-            
-            if 'predictions_user' not in st.session_state:
-                st.session_state.predictions_user = pd.DataFrame(columns=['prediction_id', 'user', 'fixture_id', 'p_win_home', 'p_draw_home', 'p_loss_home', 'created_utc', 'source', 'data_load_date', 'home', 'away'])
-            
-            if lock_button:
-                if not user_id.strip():
-                    message_slot.error("👤 Please enter a username.")
-                elif user_id.strip() in market_suppliers:
-                    message_slot.error("❌ Invalid username.")
-                else:
-                    sync_fixture()
-                    prediction_data = {
-                        "prediction_id": f"{fixture_id_sync}_{user_id}",
-                        "user": user_id,
-                        "fixture_id": fixture_id_sync,
-                        "p_win_home": p_win_pred,   # These come from the calculation in main_col
-                        "p_draw_home": p_draw_pred,
-                        "p_loss_home": p_loss_pred,
-                        "created_utc": pd.Timestamp.now(tz='UTC').isoformat(),
-                        "source": "user",
-                        "data_load_date": pd.Timestamp.utcnow().date().isoformat()
-                    }
-                    
-                    new_prediction = pd.DataFrame([prediction_data])
-                    new_prediction[['home', 'away']] = new_prediction['fixture_id'].str.split("_", expand=True).iloc[:, [2, 3]]
-                    
-                    st.session_state.predictions_user = pd.concat(
-                        [st.session_state.predictions_user, new_prediction], 
-                        ignore_index=True
-                    )
-                    
-                    # Assuming you have a function in database.py called push_prediction
-                    try:
-                        db.push_prediction(prediction_data)
-                        message_slot.success(f"✅ Prediction locked for {user_id}!")
-                        st.balloons()
-                    except Exception as e:
-                        message_slot.error(f"Encountered error, prediction not locked.")
-                        st.error(f"Error connecting to BigQuery: {e}")
-            
-            predictions_combined = pd.concat([
-                        predictions_next.loc[~predictions_next['source'].isin(market_suppliers), ['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home', 'created_utc', 'prediction_id',]],
-                        st.session_state.predictions_user[['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home', 'created_utc', 'prediction_id']]
-                    ]).sort_values(['created_utc'], ascending=False).drop_duplicates(['prediction_id'], keep='first')\
-                        .sort_values(['home', 'p_win_home', 'p_draw_home'], ascending=[True, False, True])\
-                            [['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home']]
-            
-            st.dataframe(
-                predictions_combined,
-                use_container_width=True, 
-                hide_index=True,
-                # height=250
-            )
-        with c2:
-            st.markdown("##### Leaderboard (All Time):")
-            
-            leaderboard = pd.DataFrame(
-                columns=['score'], 
-                data=agg_losses.groupby('user')['weighted_loss'].sum()/ agg_losses.groupby('user')['gameweek'].nunique()
-            ).sort_values(['score'])
-            
-            st.dataframe(
-                leaderboard,
-                use_container_width=True
-                # height=250
-            )
+        st.dataframe(
+            leaderboard,
+            use_container_width=True
+            # height=250
+        )
