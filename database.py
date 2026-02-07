@@ -146,26 +146,33 @@ def fetch_params(at_start_of="GW25"):
         """
     )
     
-def fetch_predictions(season, gw):
+def fetch_predictions(fixture_id_list):
     """
     Retrieves the Elo, Sigma, and Form parameters for the simulation.
     The 'trial' parameter allows switching between different model calibrations.
     """
+    
     return query2df(
         client,
         f"""
         SELECT  
             user,
+            source,
             fixture_id,
             SPLIT(fixture_id, '_')[SAFE_OFFSET(2)] AS home,
             SPLIT(fixture_id, '_')[SAFE_OFFSET(3)] AS away,
+            MAX_BY(prediction_id, created_utc) prediction_id,
+            MAX(created_utc) created_utc,
             MAX_BY(p_win_home, created_utc) p_win_home,
             MAX_BY(p_draw_home, created_utc) p_draw_home,
             MAX_BY(p_loss_home, created_utc) p_loss_home
         FROM `project-ceb11233-5e37-4a52-b27.public.predictions`
         WHERE
-            prediction_id LIKE '{season}_{gw}%'
-        GROUP BY 1, 2, 3, 4
+            fixture_id IN ({", ".join([f"'{f}'" for f in fixture_id_list])})
+            AND p_win_home >= 0
+            AND p_draw_home >= 0
+            AND p_loss_home >= 0
+        GROUP BY 1, 2, 3, 4, 5
         """
     )
     

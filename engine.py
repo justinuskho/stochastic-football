@@ -1,6 +1,7 @@
 # engine.py
 import numpy as np
 from scipy import stats
+from collections import defaultdict
 
 # ==========================================
 # 1. PROBABILITY & EXPECTED POINTS LOGIC
@@ -110,3 +111,74 @@ def run_simulation(params, fixture, point, new_season=False):
     else: match_error = -np.log(p_loss)
     
     return match_error, params, (mu_h, mu_a, p_win, p_draw, p_loss)
+
+def calculate_prediction_losses(predictions_list, results_dict):
+    """
+    Calculates Log-Loss for user predictions based on match results.
+    
+    Args:
+        predictions_data: List of dicts or DataFrame with 
+                         [fixture_id, p_win, p_draw, p_loss, user]
+        results_data: List of dicts or DataFrame with 
+                     [fixture_id, home_point, away_point]
+                     
+    Returns:
+        List of lists [fixture_id, user, loss]
+    """
+    if len(predictions_list)==0:
+        return []
+    
+    rows = []
+    for fixture_id, user, p_win, p_draw, p_loss in predictions_list:
+        # 3. Safety clip to avoid log(0) which results in infinity
+        p_win, p_draw, p_loss = np.clip([p_win, p_draw, p_loss], 1e-6, 1 - 1e-6)
+        
+        # 4. Log-Loss
+        home_point = results_dict[fixture_id]['home_point']
+        if home_point == 3: 
+            match_loss = -np.log(p_win)
+        elif home_point == 1: 
+            match_loss = -np.log(p_draw)
+        else: 
+            match_loss = -np.log(p_loss)
+        
+        rows.append([fixture_id, user, match_loss])
+
+    # 5. Return only the requested columns
+    return rows
+
+def calculate_aggregate_losses(prediction_losses_list, null_guess_probability=0.30):
+    """
+    Calculates Log-Loss for user predictions based on match results.
+    
+    Args:
+        predictions_data: List of prediction losses
+                         [fixture_id, user, loss]
+                     
+    Returns:
+        List of lists [gameweek, user, aggregate_losses]
+    """
+    if len(prediction_losses_list)==0:
+        return []
+    
+    gameweek_user_stats = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    for fixture_id, user, loss in prediction_losses_list:
+        gameweek = fixture_id[:12]
+        gameweek_user_stats[gameweek][user]['n_preds'] += 1
+        gameweek_user_stats[gameweek][user]['total_loss'] += loss
+    
+    rows = []
+    penalty = -np.log(null_guess_probability)
+    for gameweek, user_stats in gameweek_user_stats.items():
+        n_max = max(stats['n_preds'] for user, stats in user_stats.items())
+        for user, stats in user_stats.items():
+            stats['weighted_loss'] = (stats['total_loss'] + (n_max - int(stats['n_preds']))*penalty)/ n_max
+            rows.append([
+                gameweek,
+                user,
+                stats['total_loss'],
+                stats['n_preds'],
+                stats['weighted_loss']
+            ])
+    
+    return rows, penalty
