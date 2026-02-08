@@ -53,51 +53,61 @@ def fetch_fixtures(n_games_before, n_games_after):
     df = query2df(
         client,
         f"""
-        WITH
-            teams AS (
-                SELECT
-                    team_code,
-                    MAX(team) team
-                FROM `project-ceb11233-5e37-4a52-b27.public.teams`
-                GROUP BY 1
-            ),
-            season_round AS (
-                SELECT
-                    season,
-                    round,
-                    MAX(home_score IS NOT NULL) is_played
-                FROM `project-ceb11233-5e37-4a52-b27.public.fixtures` 
-                GROUP BY 1, 2
-            ),
-            season_round_rn AS (
-                SELECT
-                    *,
-                    ROW_NUMBER() OVER (ORDER BY season, round) rn
-                FROM season_round
-            ),
-            season_round_ix AS (
-                SELECT
-                    *,
-                    rn - MAX(CASE WHEN is_played THEN rn ELSE 0 END) OVER () ix
-                FROM season_round_rn
-            )
-        SELECT
-            f.*,
-            h.team home_team,
-            a.team away_team
-        FROM `project-ceb11233-5e37-4a52-b27.public.fixtures` f
-        LEFT JOIN teams h
-            ON f.home = h.team_code
-        LEFT JOIN teams a
-            ON f.away = a.team_code
-        INNER JOIN season_round_ix s 
-            ON f.season = s.season
-                AND f.round = s.round
-        WHERE
-            s.ix > {n_games_before}
-            AND s.ix <= {n_games_after}
-        ORDER BY
-            id
+            WITH
+                teams AS (
+                    SELECT
+                        team_code,
+                        MAX(team) team
+                    FROM `project-ceb11233-5e37-4a52-b27.public.teams`
+                    GROUP BY 1
+                ),
+                team_fixtures AS (
+                    SELECT
+                        home AS team,
+                        id AS fixture_id,
+                        home_score IS NOT NULL AS is_played,
+                        date
+                    FROM `project-ceb11233-5e37-4a52-b27.public.fixtures`
+                    WHERE
+                        season >= '2025'
+
+                    UNION DISTINCT
+
+                    SELECT
+                        away AS team,
+                        id AS fixture_id,
+                        home_score IS NOT NULL AS is_played,
+                        date
+                    FROM `project-ceb11233-5e37-4a52-b27.public.fixtures`
+                    WHERE
+                        season >= '2025'
+                ),
+                team_fixtures_rn AS (
+                    SELECT  
+                        *,
+                        ROW_NUMBER() OVER (PARTITION BY team ORDER BY date) rn
+                    FROM team_fixtures        
+                ),
+                team_fixtures_ix AS (
+                    SELECT  
+                        *,
+                        rn - MAX(CASE WHEN is_played THEN rn END) OVER (PARTITION BY team) ix
+                    FROM team_fixtures_rn
+                )
+            SELECT
+                f.*,
+                h.team home_team,
+                a.team away_team
+            FROM `project-ceb11233-5e37-4a52-b27.public.fixtures` f
+            LEFT JOIN teams h
+                ON f.home = h.team_code
+            LEFT JOIN teams a
+                ON f.away = a.team_code
+            WHERE
+                season >= '2025'
+                AND f.id IN (SELECT DISTINCT fixture_id FROM team_fixtures_ix WHERE ix > {n_games_before} AND ix <= {n_games_after})
+            ORDER BY
+                date
         """
     )
     

@@ -37,7 +37,7 @@ def get_past_5_games(team, df):
     Filters history for a specific team and generates a 
     color-coded 'Form String' for Streamlit display.
     """
-    df_team = df[(df.home==team)|(df.away==team)]
+    df_team = df[(df.home_team==team)|(df.away_team==team)]
     
     # Determine W/D/L labels
     df_team["Result"] = np.select(
@@ -117,10 +117,10 @@ def calculate_prediction_losses(predictions_list, results_dict):
     Calculates Log-Loss for user predictions based on match results.
     
     Args:
-        predictions_data: List of dicts or DataFrame with 
-                         [fixture_id, p_win, p_draw, p_loss, user]
-        results_data: List of dicts or DataFrame with 
-                     [fixture_id, home_point, away_point]
+        predictions_data: List of lists
+                         [fixture_id, user, p_win, p_draw, p_loss]
+        results_data: List of dicts
+                     {fixture_id: {home_point: 3,  date: 2025-05-01}}
                      
     Returns:
         List of lists [fixture_id, user, loss]
@@ -135,6 +135,7 @@ def calculate_prediction_losses(predictions_list, results_dict):
         
         # 4. Log-Loss
         home_point = results_dict[fixture_id]['home_point']
+        date = results_dict[fixture_id]['date']
         if home_point == 3: 
             match_loss = -np.log(p_win)
         elif home_point == 1: 
@@ -142,7 +143,7 @@ def calculate_prediction_losses(predictions_list, results_dict):
         else: 
             match_loss = -np.log(p_loss)
         
-        rows.append([fixture_id, user, match_loss])
+        rows.append([fixture_id, date, user, match_loss])
 
     # 5. Return only the requested columns
     return rows
@@ -161,20 +162,19 @@ def calculate_aggregate_losses(prediction_losses_list, null_guess_probability=0.
     if len(prediction_losses_list)==0:
         return []
     
-    gameweek_user_stats = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
-    for fixture_id, user, loss in prediction_losses_list:
-        gameweek = fixture_id[:12]
-        gameweek_user_stats[gameweek][user]['n_preds'] += 1
-        gameweek_user_stats[gameweek][user]['total_loss'] += loss
+    date_user_stats = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    for fixture_id, date, user, loss in prediction_losses_list:
+        date_user_stats[date][user]['n_preds'] += 1
+        date_user_stats[date][user]['total_loss'] += loss
     
     rows = []
     penalty = -np.log(null_guess_probability)
-    for gameweek, user_stats in gameweek_user_stats.items():
+    for date, user_stats in date_user_stats.items():
         n_max = max(stats['n_preds'] for user, stats in user_stats.items())
         for user, stats in user_stats.items():
             stats['weighted_loss'] = (stats['total_loss'] + (n_max - int(stats['n_preds']))*penalty)/ n_max
             rows.append([
-                gameweek,
+                date,
                 user,
                 stats['total_loss'],
                 stats['n_preds'],

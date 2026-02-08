@@ -35,9 +35,15 @@ html:has(.prediction-mode) h2,
 html:has(.prediction-mode) h3, 
 html:has(.prediction-mode) h4, 
 html:has(.prediction-mode) h5, 
+html:has(.prediction-mode) h6, 
 html:has(.prediction-mode) p, 
 html:has(.prediction-mode) span {
-    color: white !important;
+    color: white;
+}
+
+html:has(.prediction-mode) h6 {
+    font-size: clamp(14px, 1.6vw, 20px) !important;
+    font-weight: 100 !important;
 }
 
 html:has(.prediction-mode) p {
@@ -52,6 +58,18 @@ html:has(.prediction-mode) .stApp [data-testid="stMainBlockContainer"] {
     padding-left: 20px !important;
     padding-right: 20px !important;
     display: block !important;
+}
+
+html:has(.prediction-mode) .stApp [data-testid="stSidebarCollapsedControl"] {
+    height: 28px !important;
+    min-height: 28px !important;
+    width: 40px !important;
+    top: 20px !important;
+    
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 html:has(.prediction-mode) .stApp div[data-testid='stRadio'] { 
@@ -78,14 +96,14 @@ html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
         padding-bottom: 5rem !important;
         width: 100% !important;
         max-width: 100% !important;
-        min-width: 0!important;
+        min-width: 100% !important;
         flex: 1 1 auto !important;
         display: block !important;
         box-sizing: border-box !important;
     }
 
     html:has(.prediction-mode) section.stSidebar {
-        max-width: 80vw !important;
+        max-width: 80% !important;
     }
 
     html:has(.prediction-mode) [data-testid="stMainBlockContainer"] .g-title {
@@ -110,6 +128,19 @@ html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
 
     html:has(.prediction-mode) .js-plotly-plot {
         width: 100% !important;
+    }
+
+    html:has(.prediction-mode) [data-testid="stSidebarCollapsedControl"] {
+        height: 44px !important;     /* Standard mobile touch target size */
+        min-height: 44px !important;
+        width: 50px !important;
+        top: 15px !important;        /* Lowered so it's easier to reach */
+        background-color: rgba(255, 255, 255, 0.6) !important; /* More visible on mobile */
+    }
+
+    html:has(.prediction-mode) [data-testid="stSidebarCollapsedControl"] svg {
+        height: 24px !important;
+        width: 24px !important;
     }
 }
 
@@ -154,9 +185,9 @@ html:has(.prediction-mode) section.stSidebar div[data-testid="stHorizontalBlock"
 
 /* Ensure the Markdown container fills the entire column width */
 html:has(.prediction-mode) section.stSidebar div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] {
-    flex: 0 0 33.3333% !important;
-    max-width: 33.3333% !important;
-    min-width: 33.3333% !important;
+    flex: 0 0 33% !important;
+    max-width: 33% !important;
+    min-width: 33% !important;
     
     /* Remove padding to ensure the 'content' starts exactly at the 0, 33, and 66 marks */
     padding-left: 0px !important;
@@ -218,8 +249,31 @@ html:has(.free-play-mode) .stApp {
     background-color: white; 
 }
 
+html:has(.free-play-mode) h1, 
+html:has(.free-play-mode) h2, 
+html:has(.free-play-mode) h3, 
+html:has(.free-play-mode) h4, 
+html:has(.free-play-mode) h5, 
+html:has(.free-play-mode) h6, 
+html:has(.free-play-mode) p,
+html:has(.free-play-mode) span {
+    color: black;
+}
+
 html:has(.free-play-mode) p {
     font-size: clamp(12px, 1.5vw, 16px) !important;
+}
+
+html:has(.free-play-mode) .stApp [data-testid="stSidebarCollapsedControl"] {
+    height: 28px !important;
+    min-height: 28px !important;
+    width: 40px !important;
+    top: 20px !important;
+    
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 html:has(.free-play-mode) .stApp [data-testid="stMainBlockContainer"] {
@@ -233,7 +287,7 @@ html:has(.free-play-mode) .stApp [data-testid="stMainBlockContainer"] {
 }
 
 html:has(.free-play-mode) .stApp div[data-testid='stMetric'] { 
-    background-color: #161b22; 
+    /* background-color: #161b22;  */
     border: 1px solid #30363d; 
     border-radius: 8px; 
     padding: 10px;
@@ -247,7 +301,7 @@ html:has(.free-play-mode) [data-testid='stMetricLabel'] {
 }
 
 html:has(.free-play-mode) [data-testid='stMetricValue'] {
-    color: #FFFFFF;
+    /* color: #FFFFFF !important; */
     font-size: 1.6rem;
     font-weight: 800;
 }
@@ -257,15 +311,15 @@ html:has(.free-play-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.stMet
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
-    gap: 8px !important;
+    gap: 4px !important;
     width: 100%;
 }
 
 /* Ensure the Markdown container fills the entire column width */
 html:has(.free-play-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.stMetric) div[data-testid="stColumn"] {
-    flex: 0 0 33% !important;
-    max-width: 33% !important;
-    min-width: 33% !important;
+    flex: 0 0 32% !important;
+    max-width: 32% !important;
+    min-width: 32% !important;
     
     /* Remove padding to ensure the 'content' starts exactly at the 0, 33, and 66 marks */
     padding-left: 0px !important;
@@ -278,12 +332,29 @@ html:has(.free-play-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.stMet
 /* Target elements specifically on mobile */
 @media (max-width: 768px) {
     html:has(.free-play-mode) .stApp [data-testid="stMainBlockContainer"] {
+        padding-top: 1rem !important;
+        padding-right: 0.2rem !important;
+        padding-left: 0.6rem !important;
+        padding-bottom: 5rem !important;
         width: 100% !important;
         max-width: 100% !important;
-        min-width: 0 !important;
+        min-width: 0!important;
         flex: 1 1 auto !important;
         display: block !important;
+        box-sizing: border-box !important;
+    }
+
+    html:has(.free-play-mode) [data-testid="stSidebarCollapsedControl"] {
+        height: 44px !important;     /* Standard mobile touch target size */
+        min-height: 44px !important;
+        width: 50px !important;
+        top: 15px !important;        /* Lowered so it's easier to reach */
+        background-color: rgba(255, 255, 255, 0.6) !important; /* More visible on mobile */
+    }
+
+    html:has(.free-play-mode) [data-testid="stSidebarCollapsedControl"] svg {
+        height: 24px !important;
+        width: 24px !important;
     }
 }
-
 /* --- 2.2. SIDEBAR --- */

@@ -2,13 +2,13 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+from datetime import datetime, timedelta
 import scipy.stats as stats
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 # Import custom logic for simulation and data access
 from engine import *
 import database as db
-import json
 
 # ==========================================
 # 1. INITIALIZATION & DATA PRE-PROCESSING
@@ -23,7 +23,7 @@ params = db.fetch_params(at_start_of="GW20")[0]
 # Pre-calculate Expected Points (xP) for all historical fixtures
 # This allows us to compare actual performance vs. model expectations in the history tables
 fixtures_next = fixtures[fixtures['home_score'].isnull()]
-fixtures_next['display_name'] = "R" + fixtures_next['round'].astype(str) + ": " + fixtures_next['home'] + " vs " + fixtures_next['away']
+fixtures_next['display_name'] = "R" + fixtures_next['round'].astype(str) + ": " + fixtures_next['Fixture']
 fixtures = fixtures[fixtures['home_score'].notnull()] 
 fixtures.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures.apply(
     lambda row: run_simulation(
@@ -55,7 +55,10 @@ min_max_form = round(max(abs(min(forms)), abs(max(forms))), -2)
 hfas = [int(v) for k, v in params.items() if 'hfa' in k]
 max_hfa = round(max(hfas), -2)
 
-TEAMS = np.sort(np.unique(np.concatenate([list(fixtures["home"].sort_values().unique()), list(fixtures["home"].sort_values().unique())])))
+TEAMS_LOOKUP = pd.concat(
+    [fixtures[["home", "home_team"]].rename(columns={"home": "team_code", "home_team": "team_name"}), fixtures[["away", "away_team"]].rename(columns={"away": "team_code", "away_team": "team_name"})]
+).drop_duplicates().set_index("team_name")["team_code"].to_dict()
+TEAMS = list(TEAMS_LOOKUP.keys())
 
 # ==========================================
 # 2. UI STYLING (CUSTOM CSS)
@@ -99,7 +102,7 @@ def on_mode_change():
         sync_fixture()
         
 app_mode = st.session_state.app_mode_sync
-app_mode = st.radio("Select Mode:", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
+app_mode = st.radio("", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
     
 home_team = st.session_state.home_sync
 away_team = st.session_state.away_sync
@@ -196,8 +199,7 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
     df = agg_losses.copy()
 
     # 1. Numerical Sorting
-    df['gw_num'] = df['gameweek'].str[-2:].astype(int)
-    df = df.sort_values(['user', 'gw_num'])
+    df = df.sort_values(['user', 'date'])
 
     # 2. Calculate Trailing Average per User
     # 'min_periods=1' ensures if only 1 week of 3 is available, it averages by 1
@@ -205,9 +207,8 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
                               .transform(lambda x: x.rolling(window=window, min_periods=1).mean())
 
     # 3. Filter for minimum data points (Need 6 GWs to show a meaningful 3-GW trend)
-    max_gw = df['gw_num'].max()
-    min_gw_required = df['gw_num'].min() + (window) # e.g., if start is GW1, plot from GW6
-    plot_df = df[df['gw_num'] >= min_gw_required]
+    one_month_ago = datetime.now() - timedelta(days=30)
+    plot_df = df[pd.to_datetime(df['date']) >= one_month_ago]
 
     if plot_df.empty:
         return "Not enough data to plot trailing average (Requires at least 6 Gameweeks)."
@@ -233,18 +234,18 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
         label = f"🤖 {user.upper()}" if is_engine else (f"🏆 {user}" if is_top3 else user)
 
         fig.add_trace(go.Scatter(
-            x=user_data['gameweek'],
+            x=user_data['date'],
             y=user_data['moving_avg_loss'],
             mode='lines+markers' if (is_engine or is_top3) else 'lines',
             name=user,
             line=dict(color=color, width=width),
             showlegend=(is_engine or is_top3),
-            hovertemplate=f"<b>{user}</b><br>3-GW Avg: %{{y:.3f}}<extra></extra>"
+            hovertemplate=f"<b>{user}</b><br>Past 3 Match Days Avg: %{{y:.3f}}<extra></extra>"
         ))
 
         if is_engine or is_top3:
             fig.add_annotation(
-                x=last_row['gameweek'], y=last_row['moving_avg_loss'],
+                x=last_row['date'], y=last_row['moving_avg_loss'],
                 text=label, showarrow=False, xanchor='center', yanchor='bottom', xshift=10,
                 font=dict(color=color, size=12)
             )
@@ -256,13 +257,9 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
 
         # This is the key: Force all text to white
         font=dict(color="white"), 
-        title=dict(
-            text=f"Weekly Score (Lower is Better)",
-            font=dict(size=18, color='white')
-        ),
         dragmode=False,
         xaxis=dict(
-            title="Gameweek", 
+            # title="Date", 
             # showgrid=False,
             title_font=dict(color='white'),
             tickfont=dict(color='white'),
@@ -310,19 +307,21 @@ if app_mode == 'Free Play Mode':
         if app_mode == "Free Play Mode":
             # Call this immediately after your app_mode selection
             home_team = st.selectbox("Home Team", TEAMS, key="home_sync")
+            home_team_code = TEAMS_LOOKUP[home_team]
 
             with st.expander("Home Team Adjustments", expanded=True):
-                h_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{home_team}"]), key="fs_h_elo")
-                h_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{home_team}"]), key="fs_h_sigma")
-                h_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{home_team}"]), key="fs_h_form")
-                h_hfa = st.slider("Home Field Advantage", 0, max_hfa, value=int(params[f"hfa_{home_team}"]), key="fs_h_hfa")
+                h_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{home_team_code}"]), key="fs_h_elo")
+                h_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{home_team_code}"]), key="fs_h_sigma")
+                h_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{home_team_code}"]), key="fs_h_form")
+                h_hfa = st.slider("Home Field Advantage", 0, max_hfa, value=int(params[f"hfa_{home_team_code}"]), key="fs_h_hfa")
             
             away_team = st.selectbox("Away Team", TEAMS, key="away_sync")
+            away_team_code = TEAMS_LOOKUP[away_team]
             
             with st.expander("Away Team Adjustments", expanded=True):
-                a_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{away_team}"]), key="fs_a_elo")
-                a_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{away_team}"]), key="fs_a_sigma")
-                a_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{away_team}"]), key="fs_a_form")
+                a_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{away_team_code}"]), key="fs_a_elo")
+                a_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{away_team_code}"]), key="fs_a_sigma")
+                a_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{away_team_code}"]), key="fs_a_form")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -440,13 +439,13 @@ elif app_mode == 'Prediction Mode':
             
             # Fixture Selection
             fx = st.selectbox("Select Match", options=fixtures_next['display_name'].tolist(), key="match_selector", on_change=sync_fixture)
-            home_team = fx.split(" ")[1]        
+            home_team = fixtures_next[fixtures_next['display_name']==fx]['home'].values[0]
             h_elo = int(params[f"elo_{home_team}"])
             h_sigma = int(params[f"sigma_{home_team}"])
             h_form = int(params[f"form_{home_team}"])
             h_hfa = int(params[f"hfa_{home_team}"])
 
-            away_team = fx.split(" ")[3]
+            away_team = fixtures_next[fixtures_next['display_name']==fx]['away'].values[0]
             a_elo = int(params[f"elo_{away_team}"])
             a_sigma = int(params[f"sigma_{away_team}"])
             a_form = int(params[f"form_{away_team}"])
@@ -549,17 +548,18 @@ elif app_mode == 'Prediction Mode':
                 predictions.sort_values('created_utc', ascending=False).drop_duplicates('prediction_id', keep='first')[['fixture_id', 'user', 'p_win_home', 'p_draw_home', 'p_loss_home']].values.tolist() +\
                     [[f[0], 'engine', f[1], f[2], f[3]] for f in fixtures[['id', 'p_win', 'p_draw', 'p_loss']].values.tolist()], 
             results_dict=\
-                fixtures[['id', 'home_point']].set_index('id', drop=True).transpose().to_dict()
+                fixtures[['id', 'date', 'home_point']].set_index('id', drop=True).transpose().to_dict()
     )
 
     agg_losses_, penalty = calculate_aggregate_losses(prediction_losses, null_guess_probability=null_guess_probability)
     agg_losses = pd.DataFrame(
-        columns=['gameweek', 'user', 'total_loss', 'n_preds', 'weighted_loss'],
+        columns=['date', 'user', 'total_loss', 'n_preds', 'weighted_loss'],
         data=agg_losses_
     )
-    
+    st.markdown("##### Score (Lower is Better):")
+    st.markdown("###### Trailing average of past 6 matchdays")
     st.plotly_chart(
-        plot_performance_moving_avg(agg_losses, window=2), 
+        plot_performance_moving_avg(agg_losses, window=6), 
         use_container_width=True,
         config={
             'staticPlot': False,      # Keep it interactive for hovers...
@@ -619,9 +619,10 @@ elif app_mode == 'Prediction Mode':
                 ]).sort_values(['created_utc'], ascending=False).drop_duplicates(['prediction_id'], keep='first')\
                     .sort_values(['home', 'p_win_home', 'p_draw_home'], ascending=[True, False, True])\
                         [['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home']]
+        predictions_combined[['p_win_home', 'p_draw_home', 'p_loss_home']] = (predictions_combined[['p_win_home', 'p_draw_home', 'p_loss_home']] * 100).round(0).astype(int).astype(str) + "%"
         
         st.dataframe(
-            predictions_combined,
+            predictions_combined.rename(columns={'user': 'Username', 'home': 'Home', 'away': 'Away', 'p_win_home': 'Home Win', 'p_draw_home': 'Draw', 'p_loss_home': 'Away Win'}),
             use_container_width=True, 
             hide_index=True,
             # height=250
@@ -631,11 +632,12 @@ elif app_mode == 'Prediction Mode':
         
         leaderboard = pd.DataFrame(
             columns=['score'], 
-            data=agg_losses.groupby('user')['weighted_loss'].sum()/ agg_losses.groupby('user')['gameweek'].nunique()
-        ).sort_values(['score'])
+            data=(agg_losses.groupby('user')['weighted_loss'].sum()/ agg_losses.groupby('user')['date'].nunique()).round(2)
+        ).sort_values(['score']).reset_index()
         
         st.dataframe(
-            leaderboard,
-            use_container_width=True
+            leaderboard.rename(columns={'user': 'Username', 'score': 'Score (Lower is Better)'}),
+            use_container_width=True,
+            hide_index=True
             # height=250
         )
