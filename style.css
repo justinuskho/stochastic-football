@@ -1,0 +1,289 @@
+/* style.css */
+
+/* --- SHARED STYLES (Apply to both modes) --- */
+.stAppHeader { visibility: hidden; }
+
+html:has(.prediction-mode) .stApp { 
+    display: flex !important;
+    flex-direction: row !important;
+}
+
+div[data-testid='stElementContainer']:has(div[class='prediction-mode']) {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+div[data-testid='stElementContainer']:has(div[class='free-play-mode']) {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* ========================================== */
+/* 1. PREDICTION MODE STYLES */
+/* ========================================== */
+
+html:has(.prediction-mode) .stApp { 
+    background-color: #0E1117; 
+}
+
+html:has(.prediction-mode) h1, 
+html:has(.prediction-mode) h2, 
+html:has(.prediction-mode) h3, 
+html:has(.prediction-mode) h4, 
+html:has(.prediction-mode) h5, 
+html:has(.prediction-mode) p, 
+html:has(.prediction-mode) span {
+    color: white !important;
+}
+
+html:has(.prediction-mode) p {
+    font-size: clamp(12px, 1.5vw, 16px) !important;
+}
+
+html:has(.prediction-mode) .stApp [data-testid="stMainBlockContainer"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    display: block !important;
+}
+
+html:has(.prediction-mode) .stApp div[data-testid='stRadio'] { 
+    color: white;
+}
+
+html:has(.prediction-mode) .stApp div[data-testid='stHorizontalBlock']:has(.stAlert) { 
+    color: white;
+}
+
+html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
+    background-color: #1e2127 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 8px !important;
+    padding: 5px;
+}
+
+/* Target elements specifically on mobile */
+@media (max-width: 768px) {
+    html:has(.prediction-mode) .stApp [data-testid="stMainBlockContainer"] {
+        padding-top: 1rem !important;
+        padding-right: 0.2rem !important;
+        padding-left: 0.6rem !important;
+        padding-bottom: 5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0!important;
+        flex: 1 1 auto !important;
+        display: block !important;
+        box-sizing: border-box !important;
+    }
+
+    html:has(.prediction-mode) section.stSidebar {
+        max-width: 80vw !important;
+    }
+
+    html:has(.prediction-mode) [data-testid="stMainBlockContainer"] .g-title {
+        font-size: clamp(12px, 2vw, 16px) !important;
+    }
+
+    html:has(.prediction-mode) [data-testid="stMainBlockContainer"] .g-ytitle {
+        font-size: clamp(8px, 1.5vw, 12px) !important;
+    }
+
+    html:has(.prediction-mode) [data-testid="stMainBlockContainer"] .g-xtitle {
+        font-size: clamp(8px, 1.5vw, 12px) !important;
+    }
+
+    html:has(.prediction-mode) [data-testid="stMainBlockContainer"] .ytick text {
+        font-size: clamp(8px, 1.5vw, 12px) !important;
+    }
+
+    html:has(.prediction-mode) [data-testid="stMainBlockContainer"] .xtick text {
+        font-size: clamp(8px, 1.5vw, 12px) !important;
+    }
+
+    html:has(.prediction-mode) .js-plotly-plot {
+        width: 100% !important;
+    }
+}
+
+/* --- 1.2. SIDEBAR --- */
+
+html:has(.prediction-mode) section.stSidebar {
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding-top: 1rem;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stTextInput"] input {
+    background-color: white !important;
+    color: black !important;
+    border: 1px solid #30363d !important;
+    border-radius: 8px !important;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stTextInput"] label {
+    color: white !important;
+    font-size: 0.85rem !important;
+    font-weight: bold !important;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stSelectbox"] p {
+    color: white !important;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-baseweb="select"] svg {
+    fill: #00FFCC !important;
+}
+
+/* Force horizontal layout for columns in the sidebar */
+html:has(.prediction-mode) section.stSidebar div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 0px !important;
+    width: 100%;
+}
+
+/* Ensure the Markdown container fills the entire column width */
+html:has(.prediction-mode) section.stSidebar div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] {
+    flex: 0 0 33.3333% !important;
+    max-width: 33.3333% !important;
+    min-width: 33.3333% !important;
+    
+    /* Remove padding to ensure the 'content' starts exactly at the 0, 33, and 66 marks */
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+    
+    /* Ensure the column container itself is a block that spans this width */
+    display: block !important;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stSlider"] label{
+    font-size: 0px !important;
+    display: none !important;
+    visibility: hidden !important;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stSlider"] div[role="slider"] div {
+    font-size: 0px !important;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stSlider"] div[data-testid="stSliderTickBar"] div {
+    font-size: 0px !important;
+}
+
+/* html:has(.prediction-mode) section.stSidebar div[data-testid="stSlider"] [data-baseweb="slider"] > div > div {
+    background: none !important;
+    background-color: transparent !important;
+} */
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stSlider"] [role="slider"] {
+    background-color: white !important;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stButton"] > button {
+    background-color: #00FFCC !important;
+    border: none;
+    width: 100%;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stButton"] > button p {
+    color: black !important;
+    font-weight: bold;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stElementContainer"]:has(.stAlert) {
+    background-color: rgba(255, 75, 75, 0.2) !important; /* Example: light red tint */
+    border-radius: 10px;
+    border: 1px solid #FF4B4B;
+}
+
+html:has(.prediction-mode) section.stSidebar div[data-testid="stElementContainer"]:has(.stAlert) p {
+    color: white !important;
+}
+
+/* ========================================== */
+/* 2. FREE PLAY MODE STYLES */
+/* ========================================== */
+
+html:has(.free-play-mode) .stApp { 
+    background-color: white; 
+}
+
+html:has(.free-play-mode) p {
+    font-size: clamp(12px, 1.5vw, 16px) !important;
+}
+
+html:has(.free-play-mode) .stApp [data-testid="stMainBlockContainer"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    display: block !important;
+}
+
+html:has(.free-play-mode) .stApp div[data-testid='stMetric'] { 
+    background-color: #161b22; 
+    border: 1px solid #30363d; 
+    border-radius: 8px; 
+    padding: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+html:has(.free-play-mode) [data-testid='stMetricLabel'] {
+    color: #FFFFFF !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+html:has(.free-play-mode) [data-testid='stMetricValue'] {
+    color: #FFFFFF;
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+
+/* Force horizontal layout for columns in the sidebar */
+html:has(.free-play-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.stMetric) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    width: 100%;
+}
+
+/* Ensure the Markdown container fills the entire column width */
+html:has(.free-play-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.stMetric) div[data-testid="stColumn"] {
+    flex: 0 0 33% !important;
+    max-width: 33% !important;
+    min-width: 33% !important;
+    
+    /* Remove padding to ensure the 'content' starts exactly at the 0, 33, and 66 marks */
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+    
+    /* Ensure the column container itself is a block that spans this width */
+    display: block !important;
+}
+
+/* Target elements specifically on mobile */
+@media (max-width: 768px) {
+    html:has(.free-play-mode) .stApp [data-testid="stMainBlockContainer"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+        display: block !important;
+    }
+}
+
+/* --- 2.2. SIDEBAR --- */

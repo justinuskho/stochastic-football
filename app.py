@@ -60,231 +60,26 @@ TEAMS = np.sort(np.unique(np.concatenate([list(fixtures["home"].sort_values().un
 # ==========================================
 # 2. UI STYLING (CUSTOM CSS)
 # ==========================================
-st.markdown("""
-    <style>
-
-    /* 2. COMPRESSION: Remove massive top and bottom padding */
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 0rem;
-        padding-left: 2rem;
-        padding-right: 2rem;
-        height: 100vh;
-    }
-    
-    /* 3. COMPRESSION: Tighten the gap between every Streamlit widget */
-    [data-testid="stVerticalBlock"] {
-        gap: 0.5rem;
-    }
-
-    /* 4. Metric Component Styling */
-    [data-testid="stMetricLabel"] {
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
-    [data-testid="stMetricValue"] {
-        font-size: 1.6rem;
-        font-weight: 800;
-    }
-    
-    .stMetric { 
-        border: 1px solid #30363d; 
-        border-radius: 8px; 
-        padding: 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    }
-
-    /* 5. UI CLEANUP: Hide the header bar and footer to gain ~10% screen space */
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    #MainMenu {visibility: hidden;}
-
-    /* 6. Sidebar adjustments */
-    section[data-testid="stSidebar"] {
-        padding-top: 1rem;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-def apply_custom_theme(mode):
-    if mode == "Free Play Mode":
-        # LIGHT MODE: Left Panel Grey, Main White
-        st.markdown("""
-            <style>
-            /* Show Horizontal Blocks (The Rows/st.columns) in Red */
-            # [data-testid="stHorizontalBlock"] {
-            #     border: 2px dashed red !important;
-            # }
-            # /* Show Vertical Blocks (The content stacks) in Blue */
-            # [data-testid="stVerticalBlock"] {
-            #     border: 2px solid blue !important;
-            # }
-            # /* Show Columns in Green */
-            # [data-testid="column"] {
-            #     border: 2px solid green !important;
-            # }
-            # [data-testid="stHorizontalBlock"]:nth-of-type(2) {
-            #     border: 4px solid yellow !important;
-            # }
-            
-            # h1, h2, h3, p, span { color: #1E1E1E !important; }
-
-            /* 2. The SECOND Column (Purple) */
-            /* This SHOULD be your Right Panel in Free Play mode */
-            [data-testid="column"]:nth-child(2) {
-                border: 4px solid purple !important;
-            }
-
-            /* 3. The SECOND Vertical Block (Orange) */
-            /* Use this to see how Streamlit stacks things inside containers */
-            [data-testid="stVerticalBlock"]:nth-child(2) {
-                border: 10px solid orange !important;
-            }
-            
-            /* Main Background */
-            .stApp {
-                background-color: #FFFFFF !important;
-                color: black;
-            }
-            /* Right Panel Styling */
-            [data-testid="stHorizontalBlock"] [data-testid="column"]:nth-of-type(2){
-                background-color: black !important;
-                padding: 2rem !important;
-                min-height: 100vh !important;
-                border-left: 1px solid #DDE1E6 !important;
-                /* This ensures the color stretches to the edges */
-                margin-top: -2rem !important; 
-                margin-bottom: -2rem !important;
-            }
-            [data-testid="stHorizontalBlock"]:nth-child(2) [data-testid="column"]:nth-of-type(1) [data-testid="stHorizontalBlock"] {
-                padding: 0px !important;
-            }
-            /* Metric and Chart Text Colors */
-            .stMetric { 
-                background-color: #161b22; 
-                border: 1px solid #30363d; 
-                border-radius: 8px; 
-                padding: 10px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            }
-            [data-testid="stMetricLabel"] {
-                color: #FFFFFF;
-                font-size: 0.9rem;
-                font-weight: 600;
-            }
-            [data-testid="stMetricValue"] {
-                color: #FFFFFF;
-                font-size: 1.6rem;
-                font-weight: 800;
-            }
-
-            div[data-testid="stExpander"] p { color: #1E1E1E !important; }
-            </style>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-            <style>
-            /* 1. Global Reset & Mobile Text */
-            h1, h2, h3, p, span {{
-                color: white;
-            }}
-            .stApp {{
-                background-color: #0E1117;
-                color: #fafafa;
-            }}
-
-            /* 3. Buttons & Inputs */
-            div.stButton > button {{
-                background-color: #00FFCC !important;
-                border: none;
-                width: 100%; /* Better for mobile touch */
-            }}
-            div.stButton > button p {{
-                color: black !important;
-                font-weight: bold;
-            }}
-
-            /* Input text color fix (Ensuring contrast) */
-            div[data-testid="stTextInput"] input {{
-                background-color: rgba(255, 255, 255, 0.1) !important;
-                color: black !important; 
-                border: 1px solid rgba(255, 255, 255, 0.2);
-            }}
-
-            /* 5. Slider Customization */
-            div.stSlider > div[data-baseweb="slider"] > div > div {{
-                background: linear-gradient(to right, 
-                    #FF4B4B 0%, #FF4B4B {bound_1}%, 
-                    #808080 {bound_1}%, #808080 {bound_2}%, 
-                    #007BFF {bound_2}%, #007BFF 100%) !important;
-            }}
-            
-            div.stSlider [role="slider"] {{
-                background-color: white !important;
-                border: 2px solid #31333F !important;
-            }}
-            
-            /* Hide slider labels/ticks but keep functionality */
-            div[data-testid="stSlider"] label{{
-                font-size: 0px !important;
-                display: none !important;
-                visibility: hidden !important;
-            }}
-            
-            div[data-testid="stSlider"] [data-baseweb="slider"] div {{
-                font-size: 0px !important;
-            }}
-            
-            /* Ensure tooltips are readable */
-            div[data-baseweb="tooltip"] {{
-                background-color: black !important;
-                color: black !important;
-            }}
-            
-            /* Target the sidebar section using role (more stable than testid) */
-            section[role="complementary"] {{
-                background-color: #0E1117 !important;
-                border-right: 1px solid #30363d !important;
-            }}
-
-            /* Target the mobile overlay (scrim) when sidebar is open */
-            div[data-baseweb="overlay"] {{
-                background-color: rgba(0, 0, 0, 0.8) !important;
-                backdrop-filter: blur(2px);
-            }}
-
-            # /* 2. Sidebar Internal Styling (Anchored to your custom ID) */
-            # #sidebar label, #sidebar p, #sidebar span {{
-            #     color: #FFFFFF !important;
-            # }}
-
-            # #sidebar div[role="combobox"], #sidebar input {{
-            #     background-color: #161b22 !important;
-            #     color: white !important;
-            #     border: 1px solid #30363d !important;
-            # }}
-
-            # #sidebar button {{
-            #     background-color: #00FFCC !important;
-            #     color: black !important;
-            #     font-weight: bold !important;
-            #     width: 100% !important;
-            #     border: none !important;
-            #     box-shadow: 0 4px 12px rgba(0, 255, 204, 0.2);
-            # }}
-            
-            section[data-testid="stSidebar"] {{
-                padding-top: 1rem;
-                background-color: rgba(0,0,0,0.8);
-            }}
-
-            /* 7. Hide the default Streamlit Header for a cleaner mobile look */
-            header {{
-                background-color: rgba(0,0,0,0) !important;
-            }}
-            </style>
-            """, unsafe_allow_html=True)
+# Load your single CSS file once at the top
+def local_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
         
+local_css("style.css")
+
+# Determine which mode is active (e.g., via a toggle or radio)
+# --- 1. INITIALIZATION & CALLBACKS ---
+if 'home_sync' not in st.session_state:
+    st.session_state.home_sync = TEAMS[0]
+if 'away_sync' not in st.session_state:
+    st.session_state.away_sync = TEAMS[1]
+    
+# --- 2. GLOBAL MODE TOGGLE (Top of App) ---
+MODES = ["Prediction Mode", "Free Play Mode"]
+if "app_mode_sync" not in st.session_state:
+    st.session_state.app_mode_sync = MODES[0]
+current_mode = "prediction-mode" if st.session_state.app_mode_sync=='Prediction Mode' else "free-play-mode"
+    
 def on_mode_change():
     """
     Triggered when the user toggles between Prediction and Free Play.
@@ -303,6 +98,12 @@ def on_mode_change():
         st.session_state.match_selector = fixtures_next['display_name'].values[0]
         sync_fixture()
         
+app_mode = st.session_state.app_mode_sync
+app_mode = st.radio("Select Mode:", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
+    
+home_team = st.session_state.home_sync
+away_team = st.session_state.away_sync
+
 def sync_fixture():
     """
     Triggered when the user picks a specific match from the 
@@ -317,173 +118,11 @@ def sync_fixture():
     # Update the global sync keys
     st.session_state.home_sync = match_row['home']
     st.session_state.away_sync = match_row['away']
-
-# ==========================================
-# 3. SIDEBAR: CONTROL PANEL
-# ==========================================
-
-# --- 1. INITIALIZATION & CALLBACKS ---
-if 'home_sync' not in st.session_state:
-    st.session_state.home_sync = TEAMS[0]
-if 'away_sync' not in st.session_state:
-    st.session_state.away_sync = TEAMS[1]
-
-def sync_fixture():
-    selected = st.session_state.match_selector
-    match_row = fixtures_next[fixtures_next['display_name'] == selected].iloc[0]
-    st.session_state.home_sync = match_row['home']
-    st.session_state.away_sync = match_row['away']
     st.session_state.fixture_id_sync = match_row['id']
-
-# --- 2. GLOBAL MODE TOGGLE (Top of App) ---
-MODES = ["Prediction Mode", "Free Play Mode"]
-if "app_mode_sync" not in st.session_state:
-    st.session_state.app_mode_sync = MODES[0]
-
-# --- 3. LAYOUT DEFINITION ---
-# We define the columns. If in Prediction Mode, we use a wide middle and a right column.
-    
-app_mode = st.session_state.app_mode_sync
-app_mode = st.radio("Select Mode:", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
-    
-home_team = st.session_state.home_sync
-away_team = st.session_state.away_sync
-
-# --- 4. LEFT SIDEBAR (Free Play only) ---
-
-with st.sidebar:
-    st.markdown('<div id="sidebar">', unsafe_allow_html=True)
-    
-    if app_mode == "Free Play Mode":
-        # Call this immediately after your app_mode selection
-        st.subheader("Free Play Mode")
-        home_team = st.selectbox("Home Team", TEAMS, key="home_sync")
-
-        with st.expander("Home Team Adjustments", expanded=True):
-            h_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{home_team}"]), key="fs_h_elo")
-            h_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{home_team}"]), key="fs_h_sigma")
-            h_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{home_team}"]), key="fs_h_form")
-            h_hfa = st.slider("Home Field Advantage", 0, max_hfa, value=int(params[f"hfa_{home_team}"]), key="fs_h_hfa")
-        
-        away_team = st.selectbox("Away Team", TEAMS, key="away_sync")
-        
-        with st.expander("Away Team Adjustments", expanded=True):
-            a_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{away_team}"]), key="fs_a_elo")
-            a_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{away_team}"]), key="fs_a_sigma")
-            a_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{away_team}"]), key="fs_a_form")
-
-    # --- 5. RIGHT SIDEBAR (The "Fake" Column) ---
-    if app_mode == "Prediction Mode":
-        if "fixture_id_sync" not in st.session_state:
-            st.session_state.fixture_id_sync = fixtures_next['id'].values[0]
-        fixture_id_sync = st.session_state.fixture_id_sync
-            
-        
-        st.subheader("Prediction Panel")
-        
-        user_id = st.text_input("Username")
-        
-        # Fixture Selection
-        fx = st.selectbox("Select Official Fixture", options=fixtures_next['display_name'].tolist(), key="match_selector", on_change=sync_fixture)
-        home_team = fx.split(" ")[1]        
-        h_elo = int(params[f"elo_{home_team}"])
-        h_sigma = int(params[f"sigma_{home_team}"])
-        h_form = int(params[f"form_{home_team}"])
-        h_hfa = int(params[f"hfa_{home_team}"])
-
-        away_team = fx.split(" ")[3]
-        a_elo = int(params[f"elo_{away_team}"])
-        a_sigma = int(params[f"sigma_{away_team}"])
-        a_form = int(params[f"form_{away_team}"])
-        
-        # --- Replacement for the Adjustment Expanders ---
-        st.caption("Drag the handles to define Win, Draw, and Loss zones")
-
-        # Define the range (0% to 100%)
-        thresholds = list(range(0, 101))
-        
-        lab1, lab2, lab3 = st.columns(3, vertical_alignment="center")
-
-        with lab1:
-            lab1_slot = st.empty()
-
-        with lab2:
-            lab2_slot = st.empty()
-
-        with lab3:
-            lab3_slot = st.empty()
-        
-        # We default it to roughly 33% and 66% splits
-        bound_1, bound_2 = st.select_slider(
-            "Win | Draw | Loss",
-            options=thresholds,
-            value=(35, 65),
-            help="First handle: Home Win threshold. Second handle: Away Win threshold."
-        )
-
-        # Derive probabilities from the boundaries
-        p_win_pred = bound_1 / 100
-        p_draw_pred = (bound_2 - bound_1) / 100
-        p_loss_pred = (100 - bound_2) / 100
-        
-        # Add labels to sliders
-
-        lab1_slot.markdown(f"""
-            <div style='text-align: left; margin-bottom: -25px;'>
-                <p style='color: #FF4B4B; font-weight: bold; margin: 0; line-height: 1.2;'>
-                    {home_team}<br>
-                    <span style='font-size: 0.9em; opacity: 0.9;'>{p_win_pred*100:.0f}%</span>
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-        lab2_slot.markdown(f"""
-            <div style='text-align: center; margin-bottom: -25px;'>
-                <p style='color: #808080; font-weight: bold; margin: 0; line-height: 1.2;'>
-                    Draw<br>
-                    <span style='font-size: 0.9em; opacity: 0.9;'>{p_draw_pred*100:.0f}%</span>
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-        lab3_slot.markdown(f"""
-            <div style='text-align: right; margin-bottom: -25px;'>
-                <p style='color: #007BFF; font-weight: bold; margin: 0; line-height: 1.2;'>
-                    {away_team}<br>
-                    <span style='font-size: 0.9em; opacity: 0.9;'>{p_loss_pred*100:.0f}%</span>
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("")
-        
-        lock_button = st.button("🔒 Lock Predictions", use_container_width=True)
-        message_slot = st.empty()
-        
-        st.markdown(f"""
-            ---
-            ### 💡 **How to Play**
-            * **Pick Your Confidence:** Move the left and right slider to set your probabilities. 
-            * **Submit:** Click **Lock Predictions** to finalize your entry for this fixture.
-            * **The Goal:** Minimize your **Weighted Loss**. High confidence in the correct result yields the best rank.
-
-            > ⚠️ *Note: Missing a fixture applies a **Volume Penalty** to your form, treating the game as a random {null_guess_probability*100:.0f}% guess.*
-            """)
-        
-        st.markdown("---")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-apply_custom_theme(app_mode)
 
 # ==========================================
 # 5. DATA TABLES: HISTORICAL PERFORMANCE
 # ==========================================
-
-home_fixtures, home_form = get_past_5_games(home_team, fixtures)
-away_fixtures, away_form = get_past_5_games(away_team, fixtures)
-
-mu_h, mu_a, p_win, p_draw, p_loss = get_dynamic_drift(
-    h_elo, a_elo, h_sigma, a_sigma, h_hfa, h_form, a_form
-)
 
 def plot_matchup(h_name, a_name, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form, h_hfa):
     """
@@ -534,7 +173,19 @@ def plot_matchup(h_name, a_name, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form,
         hovermode="x unified",
         paper_bgcolor='rgba(0,0,0,0)', # Transparent background
         plot_bgcolor='rgba(0,0,0,0)',  # Transparent plot area
-        legend_font_color=legend_font_color
+        dragmode=False, # Disables panning/zooming by default
+        xaxis=dict(fixedrange=True), # Prevents horizontal zooming
+        yaxis=dict(fixedrange=True), # Prevents vertical zooming
+        legend=dict(
+            # visible=False,
+            # bgcolor='rgba(0,0,0,0)',
+            # orientation="h",  # Horizontal legend often looks better in apps
+            yanchor="top",
+            # y=1.02,
+            xanchor="right",
+            # x=1,
+            font=dict(color=legend_font_color)
+        )
     )
     return fig
 
@@ -594,7 +245,7 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
         if is_engine or is_top3:
             fig.add_annotation(
                 x=last_row['gameweek'], y=last_row['moving_avg_loss'],
-                text=label, showarrow=False, xanchor='left', xshift=10,
+                text=label, showarrow=False, xanchor='center', yanchor='bottom', xshift=10,
                 font=dict(color=color, size=12)
             )
 
@@ -602,48 +253,85 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
         template="plotly_dark",
         paper_bgcolor='rgba(0,0,0,0)', # Transparent background
         plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
-    
+
         # This is the key: Force all text to white
         font=dict(color="white"), 
         title=dict(
-            text=f"<b>{window}-Week Trailing Score</b><br><sup>Lower is Better</sup>",
+            text=f"Weekly Score (Lower is Better)",
             font=dict(size=18, color='white')
         ),
+        dragmode=False,
         xaxis=dict(
             title="Gameweek", 
             # showgrid=False,
             title_font=dict(color='white'),
             tickfont=dict(color='white'),
             gridcolor='#333', # Darker grid lines
-            zeroline=False  # Removes the heavy line at the start
+            zeroline=False,  # Removes the heavy line at the start
+            fixedrange=True,
+            automargin=True
         ),
         yaxis=dict(
-            title="Avg Weighted Log-Loss", 
+            title="Score (Lower is Better)", 
             showgrid=True, 
             gridcolor='#333',
             zeroline=False,
             title_font=dict(color='white'),
             tickfont=dict(color='white'),
+            fixedrange=True,
+            automargin=True
+            # showticklabels=False,
+            # showline=False
         ),
-        # margin=dict(l=50, r=150, t=100, b=50), # Explicitly padding all sides
+        margin=dict(t=50, b=50), # Explicitly padding all sides
         autosize=True,
         hovermode="x unified",
         # Let the template handle font color unless you have a custom hex
         legend=dict(
-            bgcolor='rgba(0,0,0,0)',
-            orientation="h",  # Horizontal legend often looks better in apps
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            font=dict(color='white')
+            visible=False
+            # bgcolor='rgba(0,0,0,0)',
+            # orientation="h",  # Horizontal legend often looks better in apps
+            # yanchor="bottom",
+            # y=1.02,
+            # xanchor="right",
+            # x=1,
+            # font=dict(color='white')
         )
     )
 
     return fig
 
-
 if app_mode == 'Free Play Mode':
+    st.markdown(f'<div class="free-play-mode">', unsafe_allow_html=True)
+    st.sidebar.header("Free Play Mode")
+    with st.sidebar:
+        st.markdown('<div id="sidebar">', unsafe_allow_html=True)
+        
+        if app_mode == "Free Play Mode":
+            # Call this immediately after your app_mode selection
+            home_team = st.selectbox("Home Team", TEAMS, key="home_sync")
+
+            with st.expander("Home Team Adjustments", expanded=True):
+                h_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{home_team}"]), key="fs_h_elo")
+                h_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{home_team}"]), key="fs_h_sigma")
+                h_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{home_team}"]), key="fs_h_form")
+                h_hfa = st.slider("Home Field Advantage", 0, max_hfa, value=int(params[f"hfa_{home_team}"]), key="fs_h_hfa")
+            
+            away_team = st.selectbox("Away Team", TEAMS, key="away_sync")
+            
+            with st.expander("Away Team Adjustments", expanded=True):
+                a_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{away_team}"]), key="fs_a_elo")
+                a_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{away_team}"]), key="fs_a_sigma")
+                a_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{away_team}"]), key="fs_a_form")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    home_fixtures, home_form = get_past_5_games(home_team, fixtures)
+    away_fixtures, away_form = get_past_5_games(away_team, fixtures)
+    mu_h, mu_a, p_win, p_draw, p_loss = get_dynamic_drift(
+        h_elo, a_elo, h_sigma, a_sigma, h_hfa, h_form, a_form
+    )
+        
     st.markdown("#### Match Outcome Probabilities")
     p1, p2, p3 = st.columns(3)
     p1.metric(f"{home_team} Win", f"{p_win:.1%}")
@@ -655,7 +343,16 @@ if app_mode == 'Free Play Mode':
     # Visual Distribution Plot: Performance Overlap
     st.markdown(f"#### Head-to-Head ELO Distribution: {home_team} (H) vs {away_team} (A)")
 
-    st.plotly_chart(plot_matchup(home_team, away_team, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form, h_hfa), use_container_width=True)
+    st.plotly_chart(
+        plot_matchup(home_team, away_team, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form, h_hfa), 
+        use_container_width=True,
+        config={
+            'staticPlot': False,      # Keep it interactive for hovers...
+            'scrollZoom': False,      # ...but disable scroll-wheel zoom
+            'displayModeBar': False,  # Hide the annoying floating toolbar on mobile
+            'showAxisDragHandles': False
+        }
+    )
 
     st.markdown("---")
 
@@ -680,7 +377,7 @@ if app_mode == 'Free Play Mode':
         st.dataframe(
             home_fixtures[["Fixture", "Score", "Result", "Pts (xPts)"]], 
             use_container_width=True, 
-            hide_index=True,
+            hide_index=True
             # height=250
         )
 
@@ -726,7 +423,127 @@ if app_mode == 'Free Play Mode':
         [kaggle](https://www.kaggle.com/writeups/justinus/stochastic-football) | [linkedin](https://www.linkedin.com/pulse/stochastic-football-justinus-kho-a3hpf/) | [medium](https://medium.com/@justinus.jx/stochastic-football-c2a44c6d856d)
         """
     )
+    st.markdown('</div>', unsafe_allow_html=True)
+    
 elif app_mode == 'Prediction Mode':
+    st.markdown(f'<div class="prediction-mode">', unsafe_allow_html=True)
+    st.sidebar.header("Prediction Panel")
+    with st.sidebar:
+        st.markdown('<div id="sidebar">', unsafe_allow_html=True)
+        if app_mode == "Prediction Mode":
+            if "fixture_id_sync" not in st.session_state:
+                st.session_state.fixture_id_sync = fixtures_next['id'].values[0]
+            fixture_id_sync = st.session_state.fixture_id_sync
+                
+            
+            user_id = st.text_input("Username")
+            
+            # Fixture Selection
+            fx = st.selectbox("Select Match", options=fixtures_next['display_name'].tolist(), key="match_selector", on_change=sync_fixture)
+            home_team = fx.split(" ")[1]        
+            h_elo = int(params[f"elo_{home_team}"])
+            h_sigma = int(params[f"sigma_{home_team}"])
+            h_form = int(params[f"form_{home_team}"])
+            h_hfa = int(params[f"hfa_{home_team}"])
+
+            away_team = fx.split(" ")[3]
+            a_elo = int(params[f"elo_{away_team}"])
+            a_sigma = int(params[f"sigma_{away_team}"])
+            a_form = int(params[f"form_{away_team}"])
+            
+            # --- Replacement for the Adjustment Expanders ---
+            st.caption("Drag the handles to define Win, Draw, and Loss zones")
+
+            # Define the range (0% to 100%)
+            thresholds = list(range(0, 101))
+            
+            lab1, lab2, lab3 = st.columns(3, vertical_alignment="center")
+
+            with lab1:
+                lab1_slot = st.empty()
+
+            with lab2:
+                lab2_slot = st.empty()
+
+            with lab3:
+                lab3_slot = st.empty()
+            
+            # We default it to roughly 33% and 66% splits
+            bound_1, bound_2 = st.select_slider(
+                "Win | Draw | Loss",
+                options=thresholds,
+                value=(35, 65),
+                help="First handle: Home Win threshold. Second handle: Away Win threshold."
+            )
+            
+            st.markdown(f"""
+                <style>
+                /* Target the slider track background */
+                html:has(.prediction-mode) section.stSidebar div[data-testid="stSlider"] [data-baseweb="slider"] > div > div {{
+                    background: linear-gradient(
+                        to right, 
+                        #FF4B4B 0%, 
+                        #FF4B4B {bound_1}%, 
+                        #808080 {bound_1}%, 
+                        #808080 {bound_2}%, 
+                        #007BFF {bound_2}%, 
+                        #007BFF 100%
+                    ) !important;
+                }}
+                </style>
+                """, unsafe_allow_html=True)
+
+            # Derive probabilities from the boundaries
+            p_win_pred = bound_1 / 100
+            p_draw_pred = (bound_2 - bound_1) / 100
+            p_loss_pred = (100 - bound_2) / 100
+            
+            # Add labels to sliders
+            st.markdown('<div id="pred-slider-label">', unsafe_allow_html=True)
+            lab1_slot.markdown(f"""
+                <div style='text-align: left; margin-bottom: -25px;'>
+                    <p style='color: #FF4B4B; font-weight: bold; margin: 0; line-height: 1.2;'>
+                        {home_team}<br>
+                        <span style='font-size: 0.9em; opacity: 0.9;'>{p_win_pred*100:.0f}%</span>
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+            lab2_slot.markdown(f"""
+                <div style='text-align: center; margin-bottom: -25px;'>
+                    <p style='color: #808080; font-weight: bold; margin: 0; line-height: 1.2;'>
+                        Draw<br>
+                        <span style='font-size: 0.9em; opacity: 0.9;'>{p_draw_pred*100:.0f}%</span>
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+            lab3_slot.markdown(f"""
+                <div style='text-align: right; margin-bottom: -25px;'>
+                    <p style='color: #007BFF; font-weight: bold; margin: 0; line-height: 1.2;'>
+                        {away_team}<br>
+                        <span style='font-size: 0.9em; opacity: 0.9;'>{p_loss_pred*100:.0f}%</span>
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            lock_button = st.button("🔒 Lock Predictions", use_container_width=True)
+            message_slot = st.empty()
+            
+            st.markdown(f"""
+                ---
+                ### 💡 **How to Play**
+                * **Pick Your Confidence:** Move the left and right slider to set your probabilities. 
+                * **Submit:** Click **Lock Predictions** to finalize your entry for this fixture.
+                * **The Goal:** Minimize your **Weighted Loss**. High confidence in the correct result yields the best rank.
+
+                > ⚠️ *Note: Missing a fixture applies a **Volume Penalty** to your form, treating the game as a random {null_guess_probability*100:.0f}% guess.*
+                """)
+            
+            st.markdown("---")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     prediction_losses = calculate_prediction_losses(
             predictions_list=\
                 predictions.sort_values('created_utc', ascending=False).drop_duplicates('prediction_id', keep='first')[['fixture_id', 'user', 'p_win_home', 'p_draw_home', 'p_loss_home']].values.tolist() +\
@@ -741,12 +558,16 @@ elif app_mode == 'Prediction Mode':
         data=agg_losses_
     )
     
-    st.markdown('<div id="leaderchart">', unsafe_allow_html=True)
     st.plotly_chart(
         plot_performance_moving_avg(agg_losses, window=2), 
-        use_container_width=True
+        use_container_width=True,
+        config={
+            'staticPlot': False,      # Keep it interactive for hovers...
+            'scrollZoom': False,      # ...but disable scroll-wheel zoom
+            'displayModeBar': False,  # Hide the annoying floating toolbar on mobile
+            'showAxisDragHandles': False
+        }
     )
-    st.markdown('</div>', unsafe_allow_html=True)
     
     c1, c2 = st.columns(2)
     
