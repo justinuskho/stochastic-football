@@ -104,6 +104,10 @@ html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
 
     html:has(.prediction-mode) section.stSidebar {
         max-width: 80% !important;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        color: white;
+        padding-top: 1rem;
     }
 
     html:has(.prediction-mode) [data-testid="stMainBlockContainer"] .g-title {
@@ -147,7 +151,7 @@ html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
 /* --- 1.2. SIDEBAR --- */
 
 html:has(.prediction-mode) section.stSidebar {
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(10px);
     color: white;
     padding-top: 1rem;
@@ -301,7 +305,7 @@ html:has(.free-play-mode) [data-testid='stMetricLabel'] {
 }
 
 html:has(.free-play-mode) [data-testid='stMetricValue'] {
-    /* color: #FFFFFF !important; */
+    color: black !important;
     font-size: 1.6rem;
     font-weight: 800;
 }
@@ -344,6 +348,14 @@ html:has(.free-play-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.stMet
         box-sizing: border-box !important;
     }
 
+    html:has(.free-play-mode) section.stSidebar {
+        max-width: 80% !important;
+        background-color: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        color: white;
+        padding-top: 1rem;
+    }
+
     html:has(.free-play-mode) [data-testid="stSidebarCollapsedControl"] {
         height: 44px !important;     /* Standard mobile touch target size */
         min-height: 44px !important;
@@ -358,3 +370,9 @@ html:has(.free-play-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.stMet
     }
 }
 /* --- 2.2. SIDEBAR --- */
+html:has(.free-play-mode) section.stSidebar {
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    color: black;
+    padding-top: 1rem;
+}

@@ -22,7 +22,7 @@ client = bigquery.Client(credentials=credentials)
 # 2. CACHED QUERY UTILITIES
 # ==========================================
 
-@st.cache_data(ttl=1200)
+@st.cache_data(ttl=360)
 def query2dict(_client, query):
     """
     Executes a query and returns a list of dictionaries.
@@ -34,7 +34,7 @@ def query2dict(_client, query):
     return [dict(row) for row in rows_raw]
 
 
-@st.cache_data(ttl=1200)
+@st.cache_data(ttl=360)
 def query2df(_client, query):
     """
     Helper function to wrap query results into a Pandas DataFrame.
