@@ -2,7 +2,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import scipy.stats as stats
 import plotly.graph_objects as go
 # Import custom logic for simulation and data access
@@ -16,14 +16,11 @@ import database as db
 st.set_page_config(page_title="Stochastic Match Engine", layout="wide")
 
 # Fetch initial fixtures and model parameters from BigQuery
-fixtures = db.fetch_fixtures(-5, 1)
+fixtures = db.fetch_fixtures(-5, 2)
 params = db.fetch_params(at_start_of="GW20")[0]
 
 # Pre-calculate Expected Points (xP) for all historical fixtures
 # This allows us to compare actual performance vs. model expectations in the history tables
-fixtures_next = fixtures[fixtures['home_score'].isnull()]
-fixtures_next['display_name'] = "R" + fixtures_next['round'].astype(str) + ": " + fixtures_next['Fixture']
-fixtures = fixtures[fixtures['home_score'].notnull()] 
 fixtures.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures.apply(
     lambda row: run_simulation(
         params, 
@@ -34,6 +31,9 @@ fixtures.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures.
     axis=1,
     result_type='expand'
 ).values
+fixtures_next = fixtures[fixtures['home_score'].isnull()]
+fixtures_next['display_name'] = "GW" + fixtures_next['round'].astype(str) + ": " + fixtures_next['Fixture']
+fixtures = fixtures[fixtures['home_score'].notnull()] 
 
 predictions = db.fetch_predictions(fixture_id_list=fixtures['id'].unique().tolist() + fixtures_next['id'].unique().tolist())
 predictions_next = predictions[predictions['fixture_id'].isin(fixtures_next['id'])]
@@ -212,6 +212,8 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
     if plot_df.empty:
         return "Not enough data to plot trailing average (Requires at least 6 Gameweeks)."
 
+    all_users = plot_df['user'].unique()
+    unique_dates = sorted(plot_df['date'].unique())
     # 4. Identify Top 3 (Based on the VERY LAST trailing average)
     final_scores = plot_df.groupby('user').last().reset_index()
     human_scores = final_scores[final_scores['user'] != engine_user_name]
@@ -248,13 +250,23 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
                 text=label, showarrow=False, xanchor='center', yanchor='bottom', xshift=10,
                 font=dict(color=color, size=12)
             )
+            
+    frames = []
+    for i in range(1, len(unique_dates) + 1):
+        frame_data = []
+        current_dates = unique_dates[:i]
+        for user in all_users:
+            user_subset = plot_df[(plot_df['user'] == user) & (plot_df['date'].isin(current_dates))]
+            frame_data.append(go.Scatter(x=user_subset['date'], y=user_subset['moving_avg_loss']))
+        frames.append(go.Frame(data=frame_data, name=str(i)))
+
+    fig.frames = frames
 
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor='rgba(0,0,0,0)', # Transparent background
         plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
 
-        # This is the key: Force all text to white
         font=dict(color="white"), 
         dragmode=False,
         xaxis=dict(
@@ -268,7 +280,7 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
             automargin=True
         ),
         yaxis=dict(
-            title="Score (Lower is Better)", 
+            # title="Score (Lower is Better)", 
             showgrid=True, 
             gridcolor='#333',
             zeroline=False,
@@ -542,6 +554,31 @@ elif app_mode == 'Prediction Mode':
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
+    # Match Cards
+    st.markdown("###### Upcoming Matches:")
+    content = '<div class="scroll-container">'
+    for home, away, p_win, p_draw, p_loss in fixtures_next.loc[fixtures_next.ix==1, ['home', 'away', 'p_win', 'p_draw', 'p_loss']].values:
+        content += f"""
+<div class="match-card">
+    <div class="team-name">{home} vs {away}</div>
+<div class="odds-row">
+    <div class="win-text">{p_win*100:.0f}%</div>
+    <div class="draw-text">{p_draw*100:.0f}%</div>
+    <div class="loss-text">{p_loss*100:.0f}%</div>
+</div>
+<div class="stacked-bar">
+    <div class="segment win" style="width: {p_win*100:.0f}%"></div>
+    <div class="segment draw" style="width: {p_draw*100:.0f}%"></div>
+    <div class="segment loss" style="width: {p_loss*100:.0f}%"></div>
+</div>
+    <div class="stamp-text">{datetime.now(timezone.utc).strftime("%b %d @ %I:%M UTC")}</div>
+</div>
+        """
+    content += '</div>'
+
+    st.markdown(content, unsafe_allow_html=True)
+    st.markdown("---")
+    
     prediction_losses = calculate_prediction_losses(
             predictions_list=\
                 predictions.sort_values('created_utc', ascending=False).drop_duplicates('prediction_id', keep='first')[['fixture_id', 'user', 'p_win_home', 'p_draw_home', 'p_loss_home']].values.tolist() +\
@@ -556,7 +593,6 @@ elif app_mode == 'Prediction Mode':
         data=agg_losses_
     )
     st.markdown("##### Score (Lower is Better):")
-    st.markdown("###### Trailing average of past 6 matchdays")
     st.plotly_chart(
         plot_performance_moving_avg(agg_losses, window=6), 
         use_container_width=True,
@@ -619,19 +655,46 @@ elif app_mode == 'Prediction Mode':
                     .sort_values(['home', 'p_win_home', 'p_draw_home'], ascending=[True, False, True])\
                         [['user', 'home', 'away', 'p_win_home', 'p_draw_home', 'p_loss_home']]
         predictions_combined[['p_win_home', 'p_draw_home', 'p_loss_home']] = (predictions_combined[['p_win_home', 'p_draw_home', 'p_loss_home']] * 100).round(0).astype(int).astype(str) + "%"
+        predictions_combined['Prediction'] = predictions_combined['p_win_home'] + "-" + predictions_combined['p_draw_home'] + "-" + predictions_combined['p_loss_home']
+            
+        matches = predictions_combined[['home', 'away']].drop_duplicates()
+        pred_cards_html = '<div class="preds-scroll-container">'
+        for _, m in matches.iterrows():
+            home, away = m['home'], m['away']
+            
+            # Filter predictions for this specific match
+            match_preds = predictions_combined[
+                (predictions_combined['home'] == home) & 
+                (predictions_combined['away'] == away)
+            ]
+            
+            # Start the Match Section
+            pred_cards_html += f"""
+<div class="match-section">
+    <div class="match-title">⚽ {home} vs {away}</div>
+            """
+            
+            # Add a card for every user who predicted this match
+            for _, pred in match_preds.iterrows():
+                pred_cards_html += f"""
+<div class="prediction-card">
+    <span class="user-name">@{pred['user']}</span>
+    <span class="prediction-value">{pred['Prediction']}</span>
+</div>
+                """
+            
+            pred_cards_html += "</div>" # Close Section
+        pred_cards_html += "</div>"
+            
+        st.markdown(pred_cards_html, unsafe_allow_html=True)
         
-        st.dataframe(
-            predictions_combined.rename(columns={'user': 'Username', 'home': 'Home', 'away': 'Away', 'p_win_home': 'Home Win', 'p_draw_home': 'Draw', 'p_loss_home': 'Away Win'}),
-            use_container_width=True, 
-            hide_index=True,
-            # height=250
-        )
     with c2:
-        st.markdown("##### Leaderboard (All Time):")
+        st.markdown("##### Leaderboard:")
         
+        leaderboard_df = agg_losses[pd.to_datetime(agg_losses['date']) >= datetime(2026, 2, 6)]
         leaderboard = pd.DataFrame(
             columns=['score'], 
-            data=(agg_losses.groupby('user')['weighted_loss'].sum()/ agg_losses.groupby('user')['date'].nunique()).round(2)
+            data=(leaderboard_df.groupby('user')['weighted_loss'].sum()/ leaderboard_df.groupby('user')['date'].nunique()).round(2)
         ).sort_values(['score']).reset_index()
         
         st.dataframe(

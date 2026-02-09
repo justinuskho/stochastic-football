@@ -83,32 +83,35 @@ def run_simulation(params, fixture, point, new_season=False):
         h_elo, a_elo, h_sigma_adj, a_sigma_adj,
         params[f'hfa_{home}'], h_form, a_form
     )
-
-    h_surprise = home_point - mu_h
-    a_surprise = away_point - mu_a
     
-    # 1. Update Form
-    params[f'form_{home}'] = (h_form * decay) + (h_surprise * k2)
-    params[f'form_{away}'] = (a_form * decay) + (-h_surprise * k2) # Away surprise is inverse
+    # Update params based on match result
+    if home_point is not None:
+        h_surprise = home_point - mu_h
+        a_surprise = away_point - mu_a
+        
+        # 1. Update Form
+        params[f'form_{home}'] = (h_form * decay) + (h_surprise * k2)
+        params[f'form_{away}'] = (a_form * decay) + (-h_surprise * k2) # Away surprise is inverse
 
-    # 2. Sigma Update (Use ABS surprise)
-    sigma_floor = 80
-    sigma_tau = 0.3
-    # Shock results increase uncertainty; predictable ones decrease it
-    params[f'sigma_{home}'] = max(sigma_floor, (h_sigma_adj * convergence) + ((abs(h_surprise)-sigma_tau) * k3))  
-    params[f'sigma_{away}'] = max(sigma_floor, (a_sigma_adj * convergence) + ((abs(a_surprise)-sigma_tau) * k3)) 
+        # 2. Sigma Update (Use ABS surprise)
+        sigma_floor = 80
+        sigma_tau = 0.3
+        # Shock results increase uncertainty; predictable ones decrease it
+        params[f'sigma_{home}'] = max(sigma_floor, (h_sigma_adj * convergence) + ((abs(h_surprise)-sigma_tau) * k3))  
+        params[f'sigma_{away}'] = max(sigma_floor, (a_sigma_adj * convergence) + ((abs(a_surprise)-sigma_tau) * k3)) 
 
-    # 3. Elo Update (Zero-Sum)
-    # elo_shift = h_surprise * k1
-    h_learning_rate = h_sigma_adj / 150  # Normalize around a 'typical' sigma
-    elo_shift = h_surprise * k1 * h_learning_rate
-    params[f'elo_{home}'] += elo_shift
-    params[f'elo_{away}'] -= elo_shift
+        # 3. Elo Update (Zero-Sum)
+        # elo_shift = h_surprise * k1
+        h_learning_rate = h_sigma_adj / 150  # Normalize around a 'typical' sigma
+        elo_shift = h_surprise * k1 * h_learning_rate
+        params[f'elo_{home}'] += elo_shift
+        params[f'elo_{away}'] -= elo_shift
 
     # 4. Log-Loss
     if home_point == 3: match_error = -np.log(p_win)
     elif home_point == 1: match_error = -np.log(p_draw)
-    else: match_error = -np.log(p_loss)
+    elif home_point == 0: match_error = -np.log(p_loss)
+    else: match_error = None
     
     return match_error, params, (mu_h, mu_a, p_win, p_draw, p_loss)
 

@@ -97,15 +97,19 @@ def fetch_fixtures(n_games_before, n_games_after):
             SELECT
                 f.*,
                 h.team home_team,
-                a.team away_team
+                a.team away_team,
+                fx.ix
             FROM `project-ceb11233-5e37-4a52-b27.public.fixtures` f
             LEFT JOIN teams h
                 ON f.home = h.team_code
             LEFT JOIN teams a
                 ON f.away = a.team_code
+            LEFT JOIN (SELECT fixture_id, MIN(ix) ix FROM team_fixtures_ix GROUP BY 1) fx
+                ON f.id = fx.fixture_id
             WHERE
                 season >= '2025'
-                AND f.id IN (SELECT DISTINCT fixture_id FROM team_fixtures_ix WHERE ix > {n_games_before} AND ix <= {n_games_after})
+                AND fx.ix > {n_games_before} 
+                AND fx.ix <= {n_games_after}
             ORDER BY
                 date
         """

@@ -87,6 +87,110 @@ html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
     padding: 5px;
 }
 
+html:has(.prediction-mode) .stApp div[data-testid="stHorizontalBlock"]:has(.preds-scroll-container) {
+    height: 40vh !important;
+    min-height: 30vh !important;
+    max-height: 100vh !important;
+    overflow: auto !important;
+}
+
+html:has(.prediction-mode) .stApp div[data-testid="stColumn"]:has(.preds-scroll-container) {
+    height: 100% !important;
+    max-height: 60vh !important;
+    overflow: auto !important;
+}
+
+/* UPCOMING MATCH PREDICTION CARDS */
+.scroll-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 10px 5px 20px 5px;
+}
+.match-card {
+    flex: 0 0 200px; /* Slightly wider to fit the bar */
+    background-color: #1e1e1e;
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid #333;
+    color: white;
+    text-align: center;
+}
+.stacked-bar {
+    display: flex;
+    height: 12px;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden; /* Rounds the corners of the segments */
+    margin-top: 10px;
+}
+.segment { height: 100%; }
+.odds-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.win-text { color: #ff4b4b; text-align: left; flex: 1; }
+.draw-text { color: #888888; text-align: center; flex: 1; }
+.loss-text { color: #007BFF; text-align: right; flex: 1; }
+.stamp-text { color: grey; text-align: center; flex: 1; }
+.win { background-color: #ff4b4b; }  /* Green-ish */
+.draw { background-color: #888888; } /* Grey */
+.loss { background-color: #007BFF; } /* Red-ish */
+.label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    margin-top: 5px;
+    color: #bbb;
+}
+
+/* PREDICTION CARDS */
+
+.preds-scroll-container {
+    flex: 1 1 auto !important; 
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: 100% !important;
+    display: flex !important; 
+    flex-direction: column;
+}
+.match-section {
+    background-color: #121212;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 25px;
+    border-left: 4px solid #00ffcc;
+}
+.match-title {
+    color: #00ffcc;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.prediction-card {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #333;
+}
+.user-name {
+    font-weight: 500;
+    color: #ffffff;
+}
+.prediction-value {
+    font-weight: bold;
+    color: #ff4b4b; /* Change to #00ffcc if you prefer the 'win' color */
+}
+
 /* Target elements specifically on mobile */
 @media (max-width: 768px) {
     html:has(.prediction-mode) .stApp [data-testid="stMainBlockContainer"] {
@@ -145,6 +249,10 @@ html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
     html:has(.prediction-mode) [data-testid="stSidebarCollapsedControl"] svg {
         height: 24px !important;
         width: 24px !important;
+    }
+
+    html:has(.prediction-mode) div[data-testid="stHorizontalBlock"]:has(.preds-scroll-container) {
+        height: 50vh !important;
     }
 }
 
