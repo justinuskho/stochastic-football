@@ -8,14 +8,28 @@ import numpy as np
 # 1. API CLIENT INITIALIZATION
 # ==========================================
 
-# Accessing Google Cloud credentials stored in Streamlit Secrets
-# This ensures sensitive JSON keys are never hardcoded in the script.
-credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
-)
+def get_bq_client():
+    # 1. Try Streamlit Secrets (App Mode)
+    try:
+        if "gcp_service_account" in st.secrets:
+            info = st.secrets["gcp_service_account"]
+            credentials = service_account.Credentials.from_service_account_info(info)
+            return bigquery.Client(credentials=credentials, project=info.get('project_id'))
+    except:
+        pass # Not running in Streamlit
 
-# Initialize the BigQuery Global Client
-client = bigquery.Client(credentials=credentials)
+    # 2. Try Environment Variable (GitHub Actions / Job Mode)
+    env_creds = os.getenv("BQ_JSON_KEY")
+    if env_creds:
+        info = json.loads(env_creds)
+        credentials = service_account.Credentials.from_service_account_info(info)
+        return bigquery.Client(credentials=credentials, project=info.get('project_id'))
+
+    # 3. Local Fallback (gcloud auth login)
+    return bigquery.Client()
+
+# Initialize the client using the helper function
+client = get_bq_client()
 
 
 # ==========================================
@@ -118,7 +132,6 @@ def fetch_fixtures(n_games_before, n_games_after):
     # --- Feature Engineering ---
     # Create readable fixture names and score strings
     df["Fixture"] = df["home_team"] + " vs. " + df["away_team"]
-    df["Score"] = df["home_score"].astype(str) + " - " + df["away_score"].astype(str)
     
     # Identify the winner for point calculation
     df["Winner"] = np.select(
@@ -144,19 +157,22 @@ def fetch_fixtures(n_games_before, n_games_after):
     return df
 
 
-def fetch_params(as_of="2026-02-01"):
+def fetch_params(before="2026-01-03"):
     """
     Retrieves the Elo, Sigma, and Form parameters for the simulation.
     The 'trial' parameter allows switching between different model calibrations.
     """
+    params_table = "project-ceb11233-5e37-4a52-b27.public.params_v2"
     return query2dict(
         client,
         f"""
-        SELECT  
+        SELECT
             *
-        FROM `project-ceb11233-5e37-4a52-b27.public.params`
+        FROM `{params_table}`
         WHERE
-            as_of = DATE '{as_of}'
+            as_of = (SELECT MAX(as_of) FROM `{params_table}` WHERE as_of < DATE '{before}')
+        ORDER BY updated_at DESC
+        LIMIT 1
         """
     )
     

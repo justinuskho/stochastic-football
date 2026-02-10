@@ -37,7 +37,7 @@ def get_past_5_games(team, df):
     Filters history for a specific team and generates a 
     color-coded 'Form String' for Streamlit display.
     """
-    df_team = df[(df.home_team==team)|(df.away_team==team)]
+    df_team = df[(df.home==team)|(df.away==team)]
     
     # Determine W/D/L labels
     df_team["Result"] = np.select(
@@ -57,13 +57,25 @@ def get_past_5_games(team, df):
 # 3. RATING UPDATE SYSTEM (ELO & SIGMA)
 # ==========================================
 
-def run_simulation(params, fixture, point, new_season=False):
+def run_simulation(params, fixture, point=None, score=None, new_season=False):
     """
     Core logic for updating team ratings after a match occurs.
     Updates the 'params' dictionary in-place.
     """
     home, away = fixture
-    home_point, away_point = point
+    
+    if score is not None:
+        home_score, away_score = score
+        if home_score > away_score:
+            home_point, away_point = 3, 0
+        elif home_score == away_score:
+            home_point, away_point = 1, 1
+        elif home_score < away_score:
+            home_point, away_point = 0, 3
+    elif point is not None:
+        home_point, away_point = point
+    else:
+        home_point, away_point = None, None
     
     h_elo, a_elo = params[f'elo_{home}'], params[f'elo_{away}']
     h_form, a_form = params[f'form_{home}'], params[f'form_{away}']

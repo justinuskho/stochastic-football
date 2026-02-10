@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 # Import custom logic for simulation and data access
 from engine import *
 import database as db
+from copy import deepcopy
 
 # ==========================================
 # 1. INITIALIZATION & DATA PRE-PROCESSING
@@ -16,11 +17,14 @@ import database as db
 st.set_page_config(page_title="Stochastic Match Engine", layout="wide")
 
 # Fetch initial fixtures and model parameters from BigQuery
-fixtures = db.fetch_fixtures(-6, 2)
-params = db.fetch_params()[0]
+fixtures = db.fetch_fixtures(-5, 2)
+params = db.fetch_params(before=fixtures['date'].min().strftime('%Y-%m-%d'))[0]
 
 # Pre-calculate Expected Points (xP) for all historical fixtures
 # This allows us to compare actual performance vs. model expectations in the history tables
+fixtures_next = fixtures[fixtures['home_score'].isnull()]
+fixtures_next['display_name'] = "GW" + fixtures_next['round'].astype(str) + ": " + fixtures_next['Fixture']
+fixtures = fixtures[fixtures['home_score'].notnull()] 
 fixtures.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures.apply(
     lambda row: run_simulation(
         params, 
@@ -31,9 +35,17 @@ fixtures.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures.
     axis=1,
     result_type='expand'
 ).values
-fixtures_next = fixtures[fixtures['home_score'].isnull()]
-fixtures_next['display_name'] = "GW" + fixtures_next['round'].astype(str) + ": " + fixtures_next['Fixture']
-fixtures = fixtures[fixtures['home_score'].notnull()] 
+params_now = deepcopy(params)
+fixtures_next.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures_next.apply(
+    lambda row: run_simulation(
+        params, 
+        (row['home'], row['away']),
+        (row['home_point'], row['away_point']),
+        new_season=False
+    )[2],
+    axis=1,
+    result_type='expand'
+).values
 
 predictions = db.fetch_predictions(fixture_id_list=fixtures['id'].unique().tolist() + fixtures_next['id'].unique().tolist())
 predictions_next = predictions[predictions['fixture_id'].isin(fixtures_next['id'])]
@@ -41,23 +53,10 @@ predictions = predictions[predictions['fixture_id'].isin(fixtures['id'])]
 null_guess_probability=0.25
 market_suppliers = set(['google', 'opta_analyst', 'Google', 'OptaAnalyst'])
 
-# Dynamic UI Scaling: Calculate slider ranges based on current data distribution
-elos = [int(v) for k, v in params.items() if 'elo' in k]
-min_elo, max_elo = round(min(elos), -2), round(max(elos), -2)
-
-sigmas = [int(v) for k, v in params.items() if 'sigma' in k]
-min_sigma, max_sigma = round(min(sigmas), -2), round(max(sigmas), -2)
-
-forms = [int(v) for k, v in params.items() if 'form' in k]
-min_max_form = round(max(abs(min(forms)), abs(max(forms))), -2)
-
-hfas = [int(v) for k, v in params.items() if 'hfa' in k]
-max_hfa = round(max(hfas), -2)
-
 TEAMS_LOOKUP = pd.concat(
     [fixtures[["home", "home_team"]].rename(columns={"home": "team_code", "home_team": "team_name"}), fixtures[["away", "away_team"]].rename(columns={"away": "team_code", "away_team": "team_name"})]
 ).drop_duplicates().set_index("team_name")["team_code"].to_dict()
-TEAMS = list(TEAMS_LOOKUP.keys())
+TEAMS = sorted(list(TEAMS_LOOKUP.keys()))
 
 # ==========================================
 # 2. UI STYLING (CUSTOM CSS)
@@ -69,42 +68,14 @@ def local_css(file_name):
         
 local_css("style.css")
 
-# Determine which mode is active (e.g., via a toggle or radio)
-# --- 1. INITIALIZATION & CALLBACKS ---
-if 'home_sync' not in st.session_state:
-    st.session_state.home_sync = TEAMS[0]
-if 'away_sync' not in st.session_state:
-    st.session_state.away_sync = TEAMS[1]
-    
-# --- 2. GLOBAL MODE TOGGLE (Top of App) ---
+# --- GLOBAL MODE TOGGLE (Top of App) ---
 MODES = ["Prediction Mode", "Free Play Mode"]
 if "app_mode_sync" not in st.session_state:
     st.session_state.app_mode_sync = MODES[0]
 current_mode = "prediction-mode" if st.session_state.app_mode_sync=='Prediction Mode' else "free-play-mode"
-    
-def on_mode_change():
-    """
-    Triggered when the user toggles between Prediction and Free Play.
-    Ensures the team selections are synchronized.
-    """
-    # 1. Check the new value of the radio button
-    new_mode = st.session_state.app_mode_sync
-    
-    if new_mode == "Free Play Mode":
-        # Reset to defaults for sandbox testing
-        st.session_state.home_sync = TEAMS[0]
-        st.session_state.away_sync = TEAMS[1]
-    else:
-        # If switching back to Prediction, sync to the currently 
-        # selected fixture in the selectbox
-        st.session_state.match_selector = fixtures_next['display_name'].values[0]
-        sync_fixture()
         
 app_mode = st.session_state.app_mode_sync
-app_mode = st.radio("", options=MODES, horizontal=True, key="app_mode_sync", on_change=on_mode_change)
-    
-home_team = st.session_state.home_sync
-away_team = st.session_state.away_sync
+app_mode = st.radio("", options=MODES, horizontal=True, key="app_mode_sync")
 
 def sync_fixture():
     """
@@ -116,11 +87,6 @@ def sync_fixture():
     
     # Filter your dataframe to find the match row
     match_row = fixtures_next[fixtures_next['display_name'] == selected_name].iloc[0]
-    
-    # Update the global sync keys
-    st.session_state.home_sync = match_row['home']
-    st.session_state.away_sync = match_row['away']
-    st.session_state.fixture_id_sync = match_row['id']
 
 # ==========================================
 # 5. DATA TABLES: HISTORICAL PERFORMANCE
@@ -317,27 +283,41 @@ if app_mode == 'Free Play Mode':
         
         if app_mode == "Free Play Mode":
             # Call this immediately after your app_mode selection
-            home_team = st.selectbox("Home Team", TEAMS, key="home_sync")
+            home_team = st.selectbox("Home Team", TEAMS, index=0)
             home_team_code = TEAMS_LOOKUP[home_team]
+            
+            # Dynamic UI Scaling: Calculate slider ranges based on current data distribution
+            elos = [int(v) for k, v in params_now.items() if 'elo' in k]
+            min_elo, max_elo = round(min(elos), -2), round(max(elos), -2)
+
+            sigmas = [int(v) for k, v in params_now.items() if 'sigma' in k]
+            min_sigma, max_sigma = round(min(sigmas), -2), round(max(sigmas), -2)
+
+            forms = [int(v) for k, v in params_now.items() if 'form' in k]
+            min_max_form = round(max(abs(min(forms)), abs(max(forms))), -2)
+
+            hfas = [int(v) for k, v in params_now.items() if 'hfa' in k]
+            max_hfa = round(max(hfas), -2)
 
             with st.expander("Home Team Adjustments", expanded=True):
-                h_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{home_team_code}"]), key="fs_h_elo")
-                h_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{home_team_code}"]), key="fs_h_sigma")
-                h_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{home_team_code}"]), key="fs_h_form")
-                h_hfa = st.slider("Home Field Advantage", 0, max_hfa, value=int(params[f"hfa_{home_team_code}"]), key="fs_h_hfa")
+                h_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params_now[f"elo_{home_team_code}"]), key="fs_h_elo")
+                h_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params_now[f"sigma_{home_team_code}"]), key="fs_h_sigma")
+                h_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params_now[f"form_{home_team_code}"]), key="fs_h_form")
+                h_hfa = st.slider("Home Field Advantage", 0, max_hfa, value=int(params_now[f"hfa_{home_team_code}"]), key="fs_h_hfa")
             
-            away_team = st.selectbox("Away Team", TEAMS, key="away_sync")
+            away_team = st.selectbox("Away Team", TEAMS, index=1)
             away_team_code = TEAMS_LOOKUP[away_team]
             
             with st.expander("Away Team Adjustments", expanded=True):
-                a_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params[f"elo_{away_team_code}"]), key="fs_a_elo")
-                a_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params[f"sigma_{away_team_code}"]), key="fs_a_sigma")
-                a_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params[f"form_{away_team_code}"]), key="fs_a_form")
+                a_elo = st.slider("Elo (Strength)", min_elo, max_elo, value=int(params_now[f"elo_{away_team_code}"]), key="fs_a_elo")
+                a_sigma = st.slider("Sigma (Uncertainty)", min_sigma, max_sigma, value=int(params_now[f"sigma_{away_team_code}"]), key="fs_a_sigma")
+                a_form = st.slider("Momentum (Form) ", -min_max_form, min_max_form, value=int(params_now[f"form_{away_team_code}"]), key="fs_a_form")
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
-    home_fixtures, home_form = get_past_5_games(home_team, fixtures)
-    away_fixtures, away_form = get_past_5_games(away_team, fixtures)
+    
+    fixtures["Score"] = fixtures["home_score"].astype(int).astype(str) + " - " + fixtures["away_score"].astype(int).astype(str)    
+    home_fixtures, home_form = get_past_5_games(home_team_code, fixtures)
+    away_fixtures, away_form = get_past_5_games(away_team_code, fixtures)
     mu_h, mu_a, p_win, p_draw, p_loss = get_dynamic_drift(
         h_elo, a_elo, h_sigma, a_sigma, h_hfa, h_form, a_form
     )
@@ -373,11 +353,11 @@ if app_mode == 'Free Play Mode':
     with c1:
         st.caption(f"{home_team}'s Past 5 Games:")
         home_fixtures['Pts'] = np.select(
-            [home_fixtures['home']==home_team],
+            [home_fixtures['home']==home_team_code],
             [home_fixtures['home_point']], home_fixtures['away_point']
         )
         home_fixtures['xPts'] = np.select(
-            [home_fixtures['home']==home_team],
+            [home_fixtures['home']==home_team_code],
             [home_fixtures['home_xP']], home_fixtures['away_xP']
         ).round(1)
         home_fixtures['Pts (xPts)'] = home_fixtures.apply(
@@ -395,11 +375,11 @@ if app_mode == 'Free Play Mode':
     with c2:
         st.caption(f"{away_team}'s Past 5 Games:")
         away_fixtures['Pts'] = np.select(
-            [away_fixtures['away']==away_team],
+            [away_fixtures['away']==away_team_code],
             [away_fixtures['away_point']], away_fixtures['home_point']
         )
         away_fixtures['xPts'] = np.select(
-            [away_fixtures['away']==away_team],
+            [away_fixtures['away']==away_team_code],
             [away_fixtures['away_xP']], away_fixtures['home_xP']
         ).round(1)
         away_fixtures['Pts (xPts)'] = away_fixtures.apply(
@@ -451,15 +431,7 @@ elif app_mode == 'Prediction Mode':
             # Fixture Selection
             fx = st.selectbox("Select Match", options=fixtures_next['display_name'].tolist(), key="match_selector", on_change=sync_fixture)
             home_team = fixtures_next[fixtures_next['display_name']==fx]['home'].values[0]
-            h_elo = int(params[f"elo_{home_team}"])
-            h_sigma = int(params[f"sigma_{home_team}"])
-            h_form = int(params[f"form_{home_team}"])
-            h_hfa = int(params[f"hfa_{home_team}"])
-
             away_team = fixtures_next[fixtures_next['display_name']==fx]['away'].values[0]
-            a_elo = int(params[f"elo_{away_team}"])
-            a_sigma = int(params[f"sigma_{away_team}"])
-            a_form = int(params[f"form_{away_team}"])
             
             # --- Replacement for the Adjustment Expanders ---
             st.caption("Drag the handles to define Win, Draw, and Loss zones")
