@@ -144,7 +144,7 @@ def fetch_fixtures(n_games_before, n_games_after):
     return df
 
 
-def fetch_params(at_start_of="GW25"):
+def fetch_params(as_of="2026-02-01"):
     """
     Retrieves the Elo, Sigma, and Form parameters for the simulation.
     The 'trial' parameter allows switching between different model calibrations.
@@ -156,7 +156,7 @@ def fetch_params(at_start_of="GW25"):
             *
         FROM `project-ceb11233-5e37-4a52-b27.public.params`
         WHERE
-            at_start_of = '{at_start_of}'
+            as_of = DATE '{as_of}'
         """
     )
     

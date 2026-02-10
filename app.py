@@ -16,8 +16,8 @@ import database as db
 st.set_page_config(page_title="Stochastic Match Engine", layout="wide")
 
 # Fetch initial fixtures and model parameters from BigQuery
-fixtures = db.fetch_fixtures(-5, 2)
-params = db.fetch_params(at_start_of="GW20")[0]
+fixtures = db.fetch_fixtures(-6, 2)
+params = db.fetch_params()[0]
 
 # Pre-calculate Expected Points (xP) for all historical fixtures
 # This allows us to compare actual performance vs. model expectations in the history tables
