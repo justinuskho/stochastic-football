@@ -3,58 +3,52 @@ import numpy as np
 from scipy import stats
 from collections import defaultdict
 
+import numpy as np
+from scipy import stats
+
 # ==========================================
 # 1. PROBABILITY & EXPECTED POINTS LOGIC
 # ==========================================
 
-def get_dynamic_drift(home_elo, away_elo, home_sigma, away_sigma, home_hfa=0, home_form=0, away_form=0, draw_margin=80):
+def get_dynamic_drift(home_elo, away_elo, home_sigma, away_sigma, home_hfa=0, home_form=0, away_form=0, draw_k=0.2):
     """
     Calculates expected points (mu) and probabilities based on two normal distributions.
     The 'Performance' of a team is modeled as a random variable centered at their Elo + modifiers.
     """
-    # effective_elo = Base Elo + Home Advantage + Current Momentum (Form)
+    # Total Rating Difference
     diff = (home_elo + home_hfa + home_form) - (away_elo + away_form)
     
-    # Combined variance of the match
-    match_sigma = np.sqrt(home_sigma**2 + away_sigma**2)
+    # Combined Sigma -> Logistic Scale 's'
+    match_sigma = np.sqrt(home_sigma**2 + away_sigma**2 + 150**2)
+    s = (match_sigma * np.sqrt(3)) / np.pi
+
+    # Sigma-based draw margin
+    draw_margin = draw_k * match_sigma
     
-    # Calculate probabilities using the Cumulative Distribution Function (CDF)
-    p_loss = np.clip(stats.norm.cdf(-draw_margin, loc=diff, scale=match_sigma), 0.01, 0.99)
-    p_win = np.clip(1 - stats.norm.cdf(draw_margin, loc=diff, scale=match_sigma), 0.01, 0.99)
-    p_draw = np.clip(1 - p_win - p_loss, 0.01, 0.99)
+    # Logistic CDF Calculation
+    p_win_raw = 1 / (1 + np.exp(-(diff - draw_margin) / s))
+    p_loss_raw = 1 / (1 + np.exp((diff + draw_margin) / s))
     
-    # Expected Points (the 'Drift')
+    # This prevents the model from ever being 95% certain.
+    ceiling = 0.8
+    floor = 0.05
+    
+    # We rescale the probabilities to live within [0.05, 0.85]
+    # This ves room for 'randomness' and 'draws'
+    p_win = floor + (ceiling - floor) * p_win_raw
+    p_loss = floor + (ceiling - floor) * p_loss_raw
+    
+    # Re-calculate draw to ensure they sum to 1.0
+    p_draw = 1.0 - p_win - p_loss
+
+    # Expected Points
+    p_win, p_draw, p_loss = np.clip([p_win, p_draw, p_loss], 0.001, 0.999)
     mu_h = (p_win * 3) + (p_draw * 1)
     mu_a = (p_loss * 3) + (p_draw * 1)
     return mu_h, mu_a, p_win, p_draw, p_loss
 
 # ==========================================
-# 2. UI DATA PROCESSING
-# ==========================================
-
-def get_past_5_games(team, df):
-    """
-    Filters history for a specific team and generates a 
-    color-coded 'Form String' for Streamlit display.
-    """
-    df_team = df[(df.home==team)|(df.away==team)]
-    
-    # Determine W/D/L labels
-    df_team["Result"] = np.select(
-        [df_team["Winner"]==team, df_team["Winner"]==""],
-        ["W", "D"], "L"
-    )
-    
-    # Generate Streamlit-flavored Markdown for colored form circles
-    form_str = ""
-    for res in df_team["Result"].values:
-        color = "green" if res == "W" else ("red" if res == "L" else "orange")
-        form_str += f":{color}[{res}] "
-    
-    return df_team, form_str
-
-# ==========================================
-# 3. RATING UPDATE SYSTEM (ELO & SIGMA)
+# 2. RATING UPDATE SYSTEM (ELO & SIGMA)
 # ==========================================
 
 def run_simulation(params, fixture, point=None, score=None, new_season=False):
@@ -81,8 +75,7 @@ def run_simulation(params, fixture, point=None, score=None, new_season=False):
     h_form, a_form = params[f'form_{home}'], params[f'form_{away}']
     h_sigma, a_sigma = params[f'sigma_{home}'], params[f'sigma_{away}']
     
-    # Use trial params
-    decay, k1, k2, k3 = params['decay'], params['k1'], params['k2'], params['k3']
+    decay, k1, k2, k3, k4 = params['decay'], params['k1'], params['k2'], params['k3'], params['k4']
     refresh, convergence = params['refresh'], params['convergence']
 
     if new_season:
@@ -92,8 +85,14 @@ def run_simulation(params, fixture, point=None, score=None, new_season=False):
         h_sigma_adj, a_sigma_adj = h_sigma, a_sigma
     
     mu_h, mu_a, p_win, p_draw, p_loss = get_dynamic_drift(
-        h_elo, a_elo, h_sigma_adj, a_sigma_adj,
-        params[f'hfa_{home}'], h_form, a_form
+        home_elo=h_elo, 
+        away_elo=a_elo, 
+        home_sigma=h_sigma_adj,
+        away_sigma=a_sigma_adj, 
+        home_hfa=params[f'hfa_{home}'], 
+        home_form=h_form,
+        away_form=a_form,
+        draw_k=k4
     )
     
     # Update params based on match result
@@ -107,7 +106,7 @@ def run_simulation(params, fixture, point=None, score=None, new_season=False):
 
         # 2. Sigma Update (Use ABS surprise)
         sigma_floor = 80
-        sigma_tau = 0.3
+        sigma_tau = 0.5
         # Shock results increase uncertainty; predictable ones decrease it
         params[f'sigma_{home}'] = max(sigma_floor, (h_sigma_adj * convergence) + ((abs(h_surprise)-sigma_tau) * k3))  
         params[f'sigma_{away}'] = max(sigma_floor, (a_sigma_adj * convergence) + ((abs(a_surprise)-sigma_tau) * k3)) 
@@ -126,6 +125,31 @@ def run_simulation(params, fixture, point=None, score=None, new_season=False):
     else: match_error = None
     
     return match_error, params, (mu_h, mu_a, p_win, p_draw, p_loss)
+
+# ==========================================
+# 3. UI DATA PROCESSING
+# ==========================================
+
+def get_past_5_games(team, df):
+    """
+    Filters history for a specific team and generates a 
+    color-coded 'Form String' for Streamlit display.
+    """
+    df_team = df[(df.home==team)|(df.away==team)]
+    
+    # Determine W/D/L labels
+    df_team["Result"] = np.select(
+        [df_team["Winner"]==team, df_team["Winner"]==""],
+        ["W", "D"], "L"
+    )
+    
+    # Generate Streamlit-flavored Markdown for colored form circles
+    form_str = ""
+    for res in df_team["Result"].values:
+        color = "green" if res == "W" else ("red" if res == "L" else "orange")
+        form_str += f":{color}[{res}] "
+    
+    return df_team, form_str
 
 def calculate_prediction_losses(predictions_list, results_dict):
     """
@@ -187,13 +211,13 @@ def calculate_aggregate_losses(prediction_losses_list, null_guess_probability=0.
     for date, user_stats in date_user_stats.items():
         n_max = max(stats['n_preds'] for user, stats in user_stats.items())
         for user, stats in user_stats.items():
-            stats['weighted_loss'] = (stats['total_loss'] + (n_max - int(stats['n_preds']))*penalty)/ n_max
             rows.append([
                 date,
                 user,
                 stats['total_loss'],
+                stats['total_loss'] + (n_max - stats['n_preds']) * penalty, # Adjusted for null guess
                 stats['n_preds'],
-                stats['weighted_loss']
+                n_max
             ])
     
     return rows, penalty

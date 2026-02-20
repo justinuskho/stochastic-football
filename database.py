@@ -162,17 +162,29 @@ def fetch_params(before="2026-01-03"):
     Retrieves the Elo, Sigma, and Form parameters for the simulation.
     The 'trial' parameter allows switching between different model calibrations.
     """
-    params_table = "project-ceb11233-5e37-4a52-b27.public.params_v2"
+    params_table = "project-ceb11233-5e37-4a52-b27.public.params"
     return query2dict(
         client,
         f"""
+        WITH
+            latest_params AS (
+                SELECT 
+                    model, 
+                    MAX(as_of) as_of 
+                FROM `{params_table}` 
+                WHERE 
+                    as_of < DATE '{before}'
+                    AND model = 'v1_logistic'
+                GROUP BY 1
+            )
         SELECT
             *
-        FROM `{params_table}`
-        WHERE
-            as_of = (SELECT MAX(as_of) FROM `{params_table}` WHERE as_of < DATE '{before}')
+        FROM `{params_table}` p
+        INNER JOIN latest_params l
+            ON 
+                p.model = l.model
+                AND p.as_of = l.as_of
         ORDER BY updated_at DESC
-        LIMIT 1
         """
     )
     

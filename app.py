@@ -157,35 +157,47 @@ def plot_matchup(h_name, a_name, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form,
     )
     return fig
 
-def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3):
+def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=21):
     """
-    Plots a trailing 3-week average of weighted log loss.
+    Plots a trailing 21-day average loss per user.
+    Formula: sum(past 21 days total_loss_adj) / sum(past 21 days n_max)
     """
     df = agg_losses.copy()
 
-    # 1. Numerical Sorting
+    # 1. Prepare Datetimes and Sorting
+    df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values(['user', 'date'])
 
-    # 2. Calculate Trailing Average per User
-    # 'min_periods=1' ensures if only 1 week of 3 is available, it averages by 1
-    df['moving_avg_loss'] = df.groupby('user')['weighted_loss']\
-                              .transform(lambda x: x.rolling(window=window, min_periods=1).mean())
+    # 2. Calculate Trailing 21-Day Totals per User
+    # We use a time-based rolling window ('21D')
+    rolling_data = (
+        df.set_index('date')
+        .groupby('user')[['total_loss_adj', 'n_max']]
+        .rolling(f'{window}D', min_periods=1)
+        .sum()
+        .reset_index()
+    )
 
-    # 3. Filter for minimum data points (Need 6 GWs to show a meaningful 3-GW trend)
-    one_month_ago = datetime.now() - timedelta(days=30)
-    plot_df = df[pd.to_datetime(df['date']) >= one_month_ago]
+    # 3. Calculate the weighted moving average loss
+    rolling_data['moving_avg_loss'] = rolling_data['total_loss_adj'] / rolling_data['n_max']
+    
+    # Merge the calculation back to the main plotting dataframe
+    df = df.merge(rolling_data[['date', 'user', 'moving_avg_loss']], on=['user', 'date'])
+
+    # 4. Filter for recent data (e.g., last 45 days of the dataset to see the 21-day trend)
+    max_date = df['date'].max()
+    start_date = max_date - timedelta(days=45)
+    plot_df = df[df['date'] >= start_date]
 
     if plot_df.empty:
-        return "Not enough data to plot trailing average (Requires at least 6 Gameweeks)."
+        return "Not enough data to plot trailing average."
 
-    all_users = plot_df['user'].unique()
-    unique_dates = sorted(plot_df['date'].unique())
-    # 4. Identify Top 3 (Based on the VERY LAST trailing average)
-    final_scores = plot_df.groupby('user').last().reset_index()
+    # 5. Identify Top 3 (Based on the VERY LAST trailing average)
+    final_scores = plot_df.groupby('user').tail(1)
     human_scores = final_scores[final_scores['user'] != engine_user_name]
     top_3_users = human_scores.nsmallest(3, 'moving_avg_loss')['user'].tolist()
 
-    # 5. Visualization
+    # 6. Visualization
     fig = go.Figure()
     colors = {'engine': '#FF4B4B', 'top3': ['#00FFCC', '#007BFF', '#7A5FFF'], 'other': '#4E4E4E'}
 
@@ -207,70 +219,27 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=3)
             name=user,
             line=dict(color=color, width=width),
             showlegend=(is_engine or is_top3),
-            hovertemplate=f"<b>{user}</b><br>Past 3 Match Days Avg: %{{y:.3f}}<extra></extra>"
+            hovertemplate=f"<b>{user}</b><br>21-Day Avg Loss: %{{y:.3f}}<extra></extra>"
         ))
 
         if is_engine or is_top3:
             fig.add_annotation(
                 x=last_row['date'], y=last_row['moving_avg_loss'],
-                text=label, showarrow=False, xanchor='center', yanchor='bottom', xshift=10,
+                text=label, showarrow=False, xanchor='left', yanchor='middle', xshift=10,
                 font=dict(color=color, size=12)
             )
-            
-    frames = []
-    for i in range(1, len(unique_dates) + 1):
-        frame_data = []
-        current_dates = unique_dates[:i]
-        for user in all_users:
-            user_subset = plot_df[(plot_df['user'] == user) & (plot_df['date'].isin(current_dates))]
-            frame_data.append(go.Scatter(x=user_subset['date'], y=user_subset['moving_avg_loss']))
-        frames.append(go.Frame(data=frame_data, name=str(i)))
-
-    fig.frames = frames
 
     fig.update_layout(
         template="plotly_dark",
-        paper_bgcolor='rgba(0,0,0,0)', # Transparent background
-        plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
-
+        paper_bgcolor='rgba(0,0,0,0)', 
+        plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color="white"), 
         dragmode=False,
-        xaxis=dict(
-            # title="Date", 
-            # showgrid=False,
-            title_font=dict(color='white'),
-            tickfont=dict(color='white'),
-            gridcolor='#333', # Darker grid lines
-            zeroline=False,  # Removes the heavy line at the start
-            fixedrange=True,
-            automargin=True
-        ),
-        yaxis=dict(
-            # title="Score (Lower is Better)", 
-            showgrid=True, 
-            gridcolor='#333',
-            zeroline=False,
-            title_font=dict(color='white'),
-            tickfont=dict(color='white'),
-            fixedrange=True,
-            automargin=True
-            # showticklabels=False,
-            # showline=False
-        ),
-        margin=dict(t=50, b=50), # Explicitly padding all sides
-        autosize=True,
+        xaxis=dict(gridcolor='#333', zeroline=False, automargin=True),
+        yaxis=dict(gridcolor='#333', zeroline=False, automargin=True, title="Weighted Loss (21D)"),
+        margin=dict(t=50, b=50),
         hovermode="x unified",
-        # Let the template handle font color unless you have a custom hex
-        legend=dict(
-            visible=False
-            # bgcolor='rgba(0,0,0,0)',
-            # orientation="h",  # Horizontal legend often looks better in apps
-            # yanchor="bottom",
-            # y=1.02,
-            # xanchor="right",
-            # x=1,
-            # font=dict(color='white')
-        )
+        showlegend=False
     )
 
     return fig
@@ -561,7 +530,7 @@ elif app_mode == 'Prediction Mode':
 
     agg_losses_, penalty = calculate_aggregate_losses(prediction_losses, null_guess_probability=null_guess_probability)
     agg_losses = pd.DataFrame(
-        columns=['date', 'user', 'total_loss', 'n_preds', 'weighted_loss'],
+        columns=['date', 'user', 'total_loss', 'total_loss_adj', 'n_preds', 'n_max'],
         data=agg_losses_
     )
     st.markdown("##### Score (Lower is Better):")
@@ -666,7 +635,7 @@ elif app_mode == 'Prediction Mode':
         leaderboard_df = agg_losses[pd.to_datetime(agg_losses['date']) >= datetime(2026, 2, 6)]
         leaderboard = pd.DataFrame(
             columns=['score'], 
-            data=(leaderboard_df.groupby('user')['weighted_loss'].sum()/ leaderboard_df.groupby('user')['date'].nunique()).round(2)
+            data=(leaderboard_df.groupby('user')['total_loss_adj'].sum()/ leaderboard_df.groupby('user')['n_max'].sum()).round(2)
         ).sort_values(['score']).reset_index()
         
         st.dataframe(
