@@ -172,14 +172,15 @@ def plot_performance_moving_avg(agg_losses, engine_user_name='engine', window=21
     # We use a time-based rolling window ('21D')
     rolling_data = (
         df.set_index('date')
-        .groupby('user')[['total_loss_adj', 'n_max']]
+        .groupby('user')[['total_loss', 'n_preds']]
         .rolling(f'{window}D', min_periods=1)
         .sum()
         .reset_index()
     )
+    rolling_data['n_max'] = rolling_data['date'].map(rolling_data.groupby('date').n_preds.max())
 
     # 3. Calculate the weighted moving average loss
-    rolling_data['moving_avg_loss'] = rolling_data['total_loss_adj'] / rolling_data['n_max']
+    rolling_data['moving_avg_loss'] = (rolling_data['total_loss'] + (rolling_data['n_max'] - rolling_data['n_preds']) * penalty)/ rolling_data['n_max']
     
     # Merge the calculation back to the main plotting dataframe
     df = df.merge(rolling_data[['date', 'user', 'moving_avg_loss']], on=['user', 'date'])
@@ -530,7 +531,7 @@ elif app_mode == 'Prediction Mode':
 
     agg_losses_, penalty = calculate_aggregate_losses(prediction_losses, null_guess_probability=null_guess_probability)
     agg_losses = pd.DataFrame(
-        columns=['date', 'user', 'total_loss', 'total_loss_adj', 'n_preds', 'n_max'],
+        columns=['date', 'user', 'total_loss', 'n_preds'],
         data=agg_losses_
     )
     st.markdown("##### Score (Lower is Better):")
@@ -633,10 +634,12 @@ elif app_mode == 'Prediction Mode':
         st.markdown("##### Leaderboard:")
         
         leaderboard_df = agg_losses[pd.to_datetime(agg_losses['date']) >= datetime(2026, 2, 6)]
+        n_max = leaderboard_df.groupby('user')['n_preds'].sum().max()
+        
         leaderboard = pd.DataFrame(
-            columns=['score'], 
-            data=(leaderboard_df.groupby('user')['total_loss_adj'].sum()/ leaderboard_df.groupby('user')['n_max'].sum()).round(2)
-        ).sort_values(['score']).reset_index()
+            columns=['score'],
+            data=((leaderboard_df.groupby('user')['total_loss'].sum() + (n_max - leaderboard_df.groupby('user')['n_preds'].sum()) * penalty)/ n_max).round(2)
+        ).sort_values('score').reset_index()
         
         st.dataframe(
             leaderboard.rename(columns={'user': 'Username', 'score': 'Score (Lower is Better)'}),

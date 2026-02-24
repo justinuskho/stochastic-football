@@ -1,10 +1,6 @@
 # engine.py
 import numpy as np
-from scipy import stats
 from collections import defaultdict
-
-import numpy as np
-from scipy import stats
 
 # ==========================================
 # 1. PROBABILITY & EXPECTED POINTS LOGIC
@@ -209,15 +205,12 @@ def calculate_aggregate_losses(prediction_losses_list, null_guess_probability=0.
     rows = []
     penalty = -np.log(null_guess_probability)
     for date, user_stats in date_user_stats.items():
-        n_max = max(stats['n_preds'] for user, stats in user_stats.items())
         for user, stats in user_stats.items():
             rows.append([
                 date,
                 user,
                 stats['total_loss'],
-                stats['total_loss'] + (n_max - stats['n_preds']) * penalty, # Adjusted for null guess
-                stats['n_preds'],
-                n_max
+                stats['n_preds']
             ])
     
     return rows, penalty
