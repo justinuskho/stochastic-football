@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from google.cloud import bigquery
+import functions_framework
 import sys
 import os
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -96,6 +97,7 @@ fx_schema=[
         bigquery.SchemaField("away_score", "INTEGER", mode="NULLABLE"),
     ]
 
+@functions_framework.http
 def run_sync(request):
     try:
         to_upsert = fixtures_from_fpl()
