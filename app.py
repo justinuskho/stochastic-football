@@ -23,12 +23,34 @@ params = db.fetch_params(before=fixtures['date'].min().strftime('%Y-%m-%d'))[0]
 # This allows us to compare actual performance vs. model expectations in the history tables
 fixtures_next = fixtures[fixtures['home_score'].isnull()]
 fixtures_next['display_name'] = "GW" + fixtures_next['round'].astype(str) + ": " + fixtures_next['Fixture']
-fixtures = fixtures[fixtures['home_score'].notnull()] 
+fixtures = fixtures[fixtures['home_score'].notnull()]
+
+params_as_of = {params['as_of']: deepcopy(params)}
+
+def run_sim_wrapper(date, params0, fixture, score=None, point=None, new_season=False):
+    """
+    Wraps run_simulation to capture parameter states.
+    """
+    # 1. Run the original simulation
+    # We pass the arguments exactly as run_simulation expects them
+    result = run_simulation(params=params0, fixture=fixture, score=score, point=point, new_season=new_season)
+    
+    # 2. Store the state of params after the simulation
+    # We use .copy() to ensure we store a snapshot, not a reference 
+    # that changes as the simulation continues to the next row
+    params1 = deepcopy(params0)
+    if score is not None or point is not None:
+        params1['as_of'] = date
+        params_as_of[date] = deepcopy(params1)
+    
+    return result
+
 fixtures.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures.apply(
-    lambda row: run_simulation(
-        params, 
-        (row['home'], row['away']),
-        (row['home_point'], row['away_point']),
+    lambda row: run_sim_wrapper(
+        date=row['date'],
+        params0=params, 
+        fixture=(row['home'], row['away']),
+        point=(row['home_point'], row['away_point']),
         new_season=False
     )[2],
     axis=1,
@@ -646,3 +668,11 @@ elif app_mode == 'Prediction Mode':
             hide_index=True
             # height=250
         )
+
+params_to_push = pd.concat([pd.DataFrame(index=p.keys(), data=p.values()) for _, p in params_as_of.items()], axis=1).transpose().reset_index(drop=True)
+params_to_push['data_load_date'] = pd.Timestamp.utcnow().date().isoformat()
+params_to_push['updated_at'] = pd.Timestamp.now().isoformat()
+params_to_push['source'] = 'app'
+db.push_params(
+    df=params_to_push
+)

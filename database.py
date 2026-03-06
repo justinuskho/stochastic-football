@@ -178,7 +178,7 @@ def fetch_params(before="2026-01-03"):
                 GROUP BY 1
             )
         SELECT
-            *
+            p.*
         FROM `{params_table}` p
         INNER JOIN latest_params l
             ON 
@@ -226,3 +226,11 @@ def push_prediction(data):
     errors = client.insert_rows_json(table_id, rows_to_insert)
     if errors != []:
         raise Exception(f"BigQuery Insert Errors: {errors}")
+    
+@st.cache_data(ttl=10080, show_spinner=False)
+def push_params(df, project_id="project-ceb11233-5e37-4a52-b27"):
+    client = bigquery.Client(project=project_id)
+    staging_table = f"{project_id}.stage.params_app"
+
+    job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND", autodetect=True)
+    client.load_table_from_dataframe(df, staging_table, job_config=job_config).result()
