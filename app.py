@@ -27,13 +27,13 @@ fixtures = fixtures[fixtures['home_score'].notnull()]
 
 params_as_of = {params['as_of']: deepcopy(params)}
 
-def run_sim_wrapper(date, params0, fixture, score=None, point=None, new_season=False):
+def run_sim_wrapper(date, params0, fixture, score=None, point=None):
     """
     Wraps run_simulation to capture parameter states.
     """
     # 1. Run the original simulation
     # We pass the arguments exactly as run_simulation expects them
-    result = run_simulation(params=params0, fixture=fixture, score=score, point=point, new_season=new_season)
+    result = run_simulation(params=params0, fixture=fixture, score=score, point=point)
     
     # 2. Store the state of params after the simulation
     # We use .copy() to ensure we store a snapshot, not a reference 
@@ -50,8 +50,7 @@ fixtures.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixtures.
         date=row['date'],
         params0=params, 
         fixture=(row['home'], row['away']),
-        point=(row['home_point'], row['away_point']),
-        new_season=False
+        point=(row['home_point'], row['away_point'])
     )[2],
     axis=1,
     result_type='expand'
@@ -61,8 +60,7 @@ fixtures_next.loc[:, ['home_xP', 'away_xP', 'p_win', 'p_draw', 'p_loss']] = fixt
     lambda row: run_simulation(
         params, 
         (row['home'], row['away']),
-        (row['home_point'], row['away_point']),
-        new_season=False
+        (row['home_point'], row['away_point'])
     )[2],
     axis=1,
     result_type='expand'

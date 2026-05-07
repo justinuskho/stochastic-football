@@ -1,5 +1,7 @@
 # engine.py
 import numpy as np
+from copy import deepcopy
+from datetime import datetime
 from collections import defaultdict
 
 # ==========================================
@@ -47,7 +49,7 @@ def get_dynamic_drift(home_elo, away_elo, home_sigma, away_sigma, home_hfa=0, ho
 # 2. RATING UPDATE SYSTEM (ELO & SIGMA)
 # ==========================================
 
-def run_simulation(params, fixture, point=None, score=None, new_season=False):
+def run_simulation(params, fixture, point=None, score=None):
     """
     Core logic for updating team ratings after a match occurs.
     Updates the 'params' dictionary in-place.
@@ -72,19 +74,13 @@ def run_simulation(params, fixture, point=None, score=None, new_season=False):
     h_sigma, a_sigma = params[f'sigma_{home}'], params[f'sigma_{away}']
     
     decay, k1, k2, k3, k4 = params['decay'], params['k1'], params['k2'], params['k3'], params['k4']
-    refresh, convergence = params['refresh'], params['convergence']
-
-    if new_season:
-        h_sigma_adj, a_sigma_adj = h_sigma + refresh, a_sigma + refresh
-        h_form, a_form = 0, 0
-    else:
-        h_sigma_adj, a_sigma_adj = h_sigma, a_sigma
+    convergence = params['convergence']
     
     mu_h, mu_a, p_win, p_draw, p_loss = get_dynamic_drift(
         home_elo=h_elo, 
         away_elo=a_elo, 
-        home_sigma=h_sigma_adj,
-        away_sigma=a_sigma_adj, 
+        home_sigma=h_sigma,
+        away_sigma=a_sigma, 
         home_hfa=params[f'hfa_{home}'], 
         home_form=h_form,
         away_form=a_form,
@@ -104,12 +100,12 @@ def run_simulation(params, fixture, point=None, score=None, new_season=False):
         sigma_floor = 80
         sigma_tau = 0.5
         # Shock results increase uncertainty; predictable ones decrease it
-        params[f'sigma_{home}'] = max(sigma_floor, (h_sigma_adj * convergence) + ((abs(h_surprise)-sigma_tau) * k3))  
-        params[f'sigma_{away}'] = max(sigma_floor, (a_sigma_adj * convergence) + ((abs(a_surprise)-sigma_tau) * k3)) 
+        params[f'sigma_{home}'] = max(sigma_floor, (h_sigma * convergence) + ((abs(h_surprise)-sigma_tau) * k3))  
+        params[f'sigma_{away}'] = max(sigma_floor, (a_sigma * convergence) + ((abs(a_surprise)-sigma_tau) * k3)) 
 
         # 3. Elo Update (Zero-Sum)
         # elo_shift = h_surprise * k1
-        h_learning_rate = h_sigma_adj / 150  # Normalize around a 'typical' sigma
+        h_learning_rate = h_sigma / 150  # Normalize around a 'typical' sigma
         elo_shift = h_surprise * k1 * h_learning_rate
         params[f'elo_{home}'] += elo_shift
         params[f'elo_{away}'] -= elo_shift
@@ -121,6 +117,21 @@ def run_simulation(params, fixture, point=None, score=None, new_season=False):
     else: match_error = None
     
     return match_error, params, (mu_h, mu_a, p_win, p_draw, p_loss)
+
+def params_season_refresh(params, date_before_first_game):
+    params_new = deepcopy(params)
+    refresh = params_new['refresh']
+    
+    for k, v in params_new.items():
+        if 'sigma_' in k:
+            params_new[k] = params_new[k] + refresh
+        if 'form_' in k:
+            params_new[k] = 0
+    
+    params_new['as_of'] = date_before_first_game
+    params_new['data_load_date'] = datetime.today().strftime('%Y-%m-%d')
+
+    return params_new
 
 # ==========================================
 # 3. UI DATA PROCESSING
