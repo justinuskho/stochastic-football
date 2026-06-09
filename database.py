@@ -3,11 +3,14 @@ from google.oauth2 import service_account
 from google.cloud import bigquery
 import pandas as pd
 import numpy as np
+import os
+import json
 
 # ==========================================
 # 1. API CLIENT INITIALIZATION
 # ==========================================
 
+@st.cache_resource
 def get_bq_client():
     # 1. Try Streamlit Secrets (App Mode)
     try:
@@ -227,7 +230,7 @@ def push_prediction(data):
     if errors != []:
         raise Exception(f"BigQuery Insert Errors: {errors}")
     
-@st.cache_data(ttl=10080, show_spinner=False)
+# @st.cache_data(ttl=10080, show_spinner=False)
 def push_params(df, project_id="project-ceb11233-5e37-4a52-b27"):
     client = bigquery.Client(project=project_id)
     staging_table = f"{project_id}.stage.params_app"

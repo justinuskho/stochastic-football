@@ -55,8 +55,8 @@ def run_simulation(params, fixture, point=None, score=None):
     Updates the 'params' dictionary in-place.
     """
     home, away = fixture
-    
-    if score is not None:
+
+    if score is not None and score[0] == score[0]:
         home_score, away_score = score
         if home_score > away_score:
             home_point, away_point = 3, 0
@@ -68,7 +68,7 @@ def run_simulation(params, fixture, point=None, score=None):
         home_point, away_point = point
     else:
         home_point, away_point = None, None
-    
+
     h_elo, a_elo = params[f'elo_{home}'], params[f'elo_{away}']
     h_form, a_form = params[f'form_{home}'], params[f'form_{away}']
     h_sigma, a_sigma = params[f'sigma_{home}'], params[f'sigma_{away}']
@@ -86,7 +86,7 @@ def run_simulation(params, fixture, point=None, score=None):
         away_form=a_form,
         draw_k=k4
     )
-    
+
     # Update params based on match result
     if home_point is not None:
         h_surprise = home_point - mu_h

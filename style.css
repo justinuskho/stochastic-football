@@ -3,7 +3,8 @@
 /* --- SHARED STYLES (Apply to both modes) --- */
 .stAppHeader { visibility: hidden; }
 
-html:has(.prediction-mode) .stApp { 
+html:has(.prediction-mode) .stApp,
+html:has(.dashboard-mode) .stApp {
     display: flex !important;
     flex-direction: row !important;
 }
@@ -22,23 +23,30 @@ div[data-testid='stElementContainer']:has(div[class='free-play-mode']) {
     padding: 0 !important;
 }
 
+div[data-testid='stElementContainer']:has(div[class='dashboard-mode']) {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 /* ========================================== */
 /* 1. PREDICTION MODE STYLES */
 /* ========================================== */
 
-html:has(.prediction-mode) .stApp { 
-    background-color: #1E1E1E; 
+html:has(.prediction-mode) .stApp {
+    background-color: #121212;
 }
 
-html:has(.prediction-mode) h1, 
-html:has(.prediction-mode) h2, 
-html:has(.prediction-mode) h3, 
-html:has(.prediction-mode) h4, 
-html:has(.prediction-mode) h5, 
-html:has(.prediction-mode) h6, 
-html:has(.prediction-mode) p, 
+html:has(.prediction-mode) h1,
+html:has(.prediction-mode) h2,
+html:has(.prediction-mode) h3,
+html:has(.prediction-mode) h4,
+html:has(.prediction-mode) h5,
+html:has(.prediction-mode) h6,
+html:has(.prediction-mode) p,
 html:has(.prediction-mode) span {
-    color: #FFFFFF;
+    color: #E0E0E0;
 }
 
 html:has(.prediction-mode) h6 {
@@ -81,8 +89,8 @@ html:has(.prediction-mode) .stApp div[data-testid='stHorizontalBlock']:has(.stAl
 }
 
 html:has(.prediction-mode) .stApp div[data-testid="stDataFrame"] {
-    background-color: #1e2127 !important;
-    border: 1px solid #30363d !important;
+    background-color: #121212 !important;
+    border: 1px solid #444444 !important;
     border-radius: 8px !important;
     padding: 5px;
 }
@@ -108,11 +116,11 @@ html:has(.prediction-mode) .stApp div[data-testid="stColumn"]:has(.preds-scroll-
     padding: 10px 5px 20px 5px;
 }
 .match-card {
-    flex: 0 0 200px; /* Slightly wider to fit the bar */
-    background-color: #1e1e1e;
+    flex: 0 0 200px;
+    background-color: #1A1A1A;
     border-radius: 12px;
     padding: 15px;
-    border: 1px solid #333;
+    border: 1px solid #444444;
     color: white;
     text-align: center;
 }
@@ -135,7 +143,7 @@ html:has(.prediction-mode) .stApp div[data-testid="stColumn"]:has(.preds-scroll-
 .win-text { color: #ff4b4b; text-align: left; flex: 1; }
 .draw-text { color: #888888; text-align: center; flex: 1; }
 .loss-text { color: #007BFF; text-align: right; flex: 1; }
-.stamp-text { color: grey; text-align: center; flex: 1; }
+.stamp-text { color: #B0B0B0; text-align: center; flex: 1; }
 .win { background-color: #ff4b4b; }  /* Green-ish */
 .draw { background-color: #888888; } /* Grey */
 .loss { background-color: #007BFF; } /* Red-ish */
@@ -158,7 +166,7 @@ html:has(.prediction-mode) .stApp div[data-testid="stColumn"]:has(.preds-scroll-
     flex-direction: column;
 }
 .match-section {
-    background-color: #121212;
+    background-color: #0D0D0D;
     border-radius: 12px;
     padding: 15px;
     margin-bottom: 25px;
@@ -173,18 +181,18 @@ html:has(.prediction-mode) .stApp div[data-testid="stColumn"]:has(.preds-scroll-
     letter-spacing: 1px;
 }
 .prediction-card {
-    background-color: #1e1e1e;
+    background-color: #1A1A1A;
     border-radius: 8px;
     padding: 10px 15px;
     margin-bottom: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid #333;
+    border: 1px solid #444444;
 }
 .user-name {
     font-weight: 500;
-    color: #ffffff;
+    color: #E0E0E0;
 }
 .prediction-value {
     font-weight: bold;
@@ -268,7 +276,7 @@ html:has(.prediction-mode) section.stSidebar {
 html:has(.prediction-mode) section.stSidebar div[data-testid="stTextInput"] input {
     background-color: white !important;
     color: black !important;
-    border: 1px solid #30363d !important;
+    border: 1px solid #444444 !important;
     border-radius: 8px !important;
 }
 
@@ -332,14 +340,16 @@ html:has(.prediction-mode) section.stSidebar div[data-testid="stSlider"] [role="
     background-color: white !important;
 }
 
-html:has(.prediction-mode) section.stSidebar div[data-testid="stButton"] > button {
-    background-color: #00FFCC !important;
+html:has(.prediction-mode) section.stSidebar div[data-testid="stButton"] > button,
+html:has(.prediction-mode) [data-testid="stMainBlockContainer"] div[data-testid="stButton"] > button {
+    background-color: #37003C !important;
     border: none;
     width: 100%;
 }
 
-html:has(.prediction-mode) section.stSidebar div[data-testid="stButton"] > button p {
-    color: black !important;
+html:has(.prediction-mode) section.stSidebar div[data-testid="stButton"] > button p,
+html:has(.prediction-mode) [data-testid="stMainBlockContainer"] div[data-testid="stButton"] > button p {
+    color: rgb(255, 255, 255) !important;
     font-weight: bold;
 }
 
@@ -483,4 +493,127 @@ html:has(.free-play-mode) section.stSidebar {
     backdrop-filter: blur(10px);
     color: black;
     padding-top: 1rem;
+}
+
+/* ========================================== */
+/* 3. DASHBOARD MODE STYLES */
+/* ========================================== */
+
+html:has(.dashboard-mode) .stApp {
+    background-color: #ffffff;
+}
+
+html:has(.dashboard-mode) h1,
+html:has(.dashboard-mode) h2,
+html:has(.dashboard-mode) h3,
+html:has(.dashboard-mode) h4,
+html:has(.dashboard-mode) h5,
+html:has(.dashboard-mode) h6,
+html:has(.dashboard-mode) p,
+html:has(.dashboard-mode) span {
+    color: #37003C;
+}
+
+html:has(.dashboard-mode) p {
+    font-size: clamp(12px, 1.5vw, 16px) !important;
+}
+
+html:has(.dashboard-mode) .stApp [data-testid="stMainBlockContainer"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    display: block !important;
+}
+
+html:has(.dashboard-mode) .stApp [data-testid="stSidebarCollapsedControl"] {
+    height: 28px !important;
+    min-height: 28px !important;
+    width: 40px !important;
+    top: 20px !important;
+    background-color: rgba(0, 255, 133, 0.3) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+html:has(.dashboard-mode) .stApp div[data-testid='stRadio'] {
+    color: white;
+}
+
+/* html:has(.dashboard-mode) .stApp div[data-testid="stDataFrame"] {
+    background-color: #ffffff !important;
+    border: 1px solid #7B1FA2 !important;
+    border-radius: 8px !important;
+    padding: 5px;
+} */
+
+html:has(.dashboard-mode) hr {
+    border-color: #7B1FA2 !important;
+}
+
+/* --- 3.1. SIDEBAR --- */
+html:has(.dashboard-mode) section.stSidebar {
+    background-color: rgba(26, 0, 32, 0.9);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding-top: 1rem;
+    border-right: 1px solid #7B1FA2;
+}
+
+html:has(.dashboard-mode) section.stSidebar h1,
+html:has(.dashboard-mode) section.stSidebar h2,
+html:has(.dashboard-mode) section.stSidebar h3,
+html:has(.dashboard-mode) section.stSidebar p,
+html:has(.dashboard-mode) section.stSidebar span {
+    color: #FFFFFF !important;
+}
+
+html:has(.dashboard-mode) section.stSidebar strong {
+    color: #00FF85 !important;
+}
+
+html:has(.dashboard-mode) [data-testid="stMainBlockContainer"] div[data-testid="stButton"] > button {
+    background-color: #00FF85 !important;
+    border: none;
+    width: 100%;
+}
+
+html:has(.dashboard-mode) [data-testid="stMainBlockContainer"] div[data-testid="stButton"] > button p {
+    color: #37003C !important;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    html:has(.dashboard-mode) .stApp [data-testid="stMainBlockContainer"] {
+        padding-top: 1rem !important;
+        padding-right: 0.2rem !important;
+        padding-left: 0.6rem !important;
+        padding-bottom: 5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        flex: 1 1 auto !important;
+        display: block !important;
+        box-sizing: border-box !important;
+    }
+
+    html:has(.dashboard-mode) section.stSidebar {
+        max-width: 80% !important;
+    }
+
+    html:has(.dashboard-mode) [data-testid="stSidebarCollapsedControl"] {
+        height: 44px !important;
+        min-height: 44px !important;
+        width: 50px !important;
+        top: 15px !important;
+        background-color: rgba(0, 255, 133, 0.5) !important;
+    }
+
+    html:has(.dashboard-mode) [data-testid="stSidebarCollapsedControl"] svg {
+        height: 24px !important;
+        width: 24px !important;
+    }
 }
