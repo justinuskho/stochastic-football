@@ -1,11 +1,19 @@
 import pandas as pd
 import streamlit as st
+import database as db
 from views.context import AppContext, PredictionContext
-from views.charts import plot_performance_moving_avg
+from views.charts import plot_rolling_score
 
 
 def render_dashboard(ctx: AppContext, pctx: PredictionContext) -> None:
     st.markdown('<div class="dashboard-mode">', unsafe_allow_html=True)
+
+    lb_raw = db.fetch_leaderboard(season="2025-2026", n_preds_min=10)
+    human_lb_full = (
+        lb_raw[lb_raw['is_user']]
+        .sort_values('rank_user')[['rank_user', 'user', 'n_preds', 'loss_per_game_adj']]
+        .rename(columns={'rank_user': 'Rank', 'user': 'Username', 'n_preds': 'Predictions', 'loss_per_game_adj': 'Score (Lower is Better)'})
+    )
 
     with st.sidebar:
         st.markdown('<div id="sidebar">', unsafe_allow_html=True)
@@ -16,10 +24,9 @@ def render_dashboard(ctx: AppContext, pctx: PredictionContext) -> None:
             st.sidebar.header("Dashboard Mode")
             st.markdown("### Season Complete")
             st.markdown("The 2025/26 Premier League season has ended. Here's the final standings:")
-        human_lb = pctx.leaderboard[~pctx.leaderboard['user'].isin(pctx.all_benchmarks)].head(3)
-        for rank, (_, row) in enumerate(human_lb.iterrows(), 1):
-            medal = ["🥇", "🥈", "🥉"][rank - 1]
-            st.markdown(f"{medal} **{row['user']}** - {row['score']:.2f}")
+        for _, row in human_lb_full.head(3).iterrows():
+            medal = ["🥇", "🥈", "🥉"][int(row['Rank']) - 1]
+            st.markdown(f"{medal} **{row['Username']}** — {row['Score (Lower is Better)']:.3f}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     title = "⚽ 2025/26 Premier League Season Final Results" if ctx.fixtures_next.empty else "⚽ 2025/26 Premier League Season — Results So Far"
@@ -28,20 +35,19 @@ def render_dashboard(ctx: AppContext, pctx: PredictionContext) -> None:
 
     # A: Final Leaderboard
     st.markdown("##### Final Leaderboard (Human Players):")
-    human_lb_full = pctx.leaderboard[~pctx.leaderboard['user'].isin(pctx.all_benchmarks)].copy()
-    human_lb_full.insert(0, 'Rank', range(1, len(human_lb_full) + 1))
-    st.dataframe(
-        human_lb_full.rename(columns={'user': 'Username', 'score': 'Score (Lower is Better)'}),
-        use_container_width=True, hide_index=True
-    )
+    st.markdown("###### Only players with >=10 predictions are eligible for the leaderboard.")
+    
+    st.dataframe(human_lb_full, use_container_width=True, hide_index=True)
     st.markdown("---")
 
     # B: Performance chart (humans only)
     st.markdown("##### Season Performance:")
-    agg_losses_humans = pctx.agg_losses[pctx.agg_losses['user'].isin(pctx.human_users)]
-    if not agg_losses_humans.empty:
+    rolling_df = db.fetch_rolling_score()
+    rolling_humans = rolling_df[rolling_df['user'].isin(pctx.human_users)]
+    
+    if not rolling_humans.empty:
         st.plotly_chart(
-            plot_performance_moving_avg(agg_losses_humans, pctx.penalty, window=6),
+            plot_rolling_score(rolling_humans),
             use_container_width=True,
             config={'staticPlot': False, 'scrollZoom': False, 'displayModeBar': False, 'showAxisDragHandles': False}
         )

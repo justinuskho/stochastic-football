@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import database as db
 from engine import calculate_prediction_losses, calculate_aggregate_losses
 from views.context import AppContext, PredictionContext
-from views.charts import plot_performance_moving_avg
+# from views.charts import plot_performance_moving_avg
 
 
 def build_prediction_context(ctx: AppContext) -> PredictionContext:
@@ -183,12 +183,12 @@ def render_prediction(ctx: AppContext, pctx: PredictionContext) -> None:
     st.markdown(content, unsafe_allow_html=True)
     st.markdown("---")
 
-    st.markdown("##### Score (Lower is Better):")
-    st.plotly_chart(
-        plot_performance_moving_avg(pctx.agg_losses, pctx.penalty, window=6),
-        use_container_width=True,
-        config={'staticPlot': False, 'scrollZoom': False, 'displayModeBar': False, 'showAxisDragHandles': False}
-    )
+    # st.markdown("##### Score (Lower is Better):")
+    # st.plotly_chart(
+    #     plot_performance_moving_avg(pctx.agg_losses, pctx.penalty, window=6),
+    #     use_container_width=True,
+    #     config={'staticPlot': False, 'scrollZoom': False, 'displayModeBar': False, 'showAxisDragHandles': False}
+    # )
 
     c1, c2 = st.columns(2)
 

@@ -191,10 +191,55 @@ def fetch_params(before="2026-01-03"):
         """
     )
     
+def fetch_leaderboard(season="2025-2026", n_preds_min=10):
+    """
+    Retrieves the latest leaderboard standings, including average log-loss and prediction counts for each user.
+    """
+    
+    return query2df(
+        client,
+        f"""
+        SELECT
+            season,
+            user,
+            is_user,
+            n_preds,
+            total_loss,
+            loss_per_game,
+            loss_per_game_adj,
+            DENSE_RANK() OVER (PARTITION BY season ORDER BY loss_per_game) AS rank,
+            CASE 
+                WHEN is_user THEN DENSE_RANK() OVER (PARTITION BY season, is_user ORDER BY loss_per_game)
+                ELSE NULL
+            END AS rank_user
+        FROM `project-ceb11233-5e37-4a52-b27.public.leaderboard`
+        WHERE
+            season = '{season}'
+            AND n_preds >= {n_preds_min} -- Only include users with at least {n_preds_min} predictions for reliability     
+        """
+    )
+    
+def fetch_rolling_score():
+    """
+    Retrieves the latest rolling scores for each user.
+    """
+    
+    return query2df(
+        client,
+        f"""
+        SELECT
+            date,
+            user,
+            total_loss_rolling,
+            n_preds_rolling,
+            loss_per_game_rolling
+        FROM `project-ceb11233-5e37-4a52-b27.public.prediction_losses_rolling`    
+        """
+    )
+    
 def fetch_predictions(fixture_id_list):
     """
-    Retrieves the Elo, Sigma, and Form parameters for the simulation.
-    The 'trial' parameter allows switching between different model calibrations.
+    Retrieves the latest predictions for the specified fixture IDs.
     """
     
     return query2df(

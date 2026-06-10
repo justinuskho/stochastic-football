@@ -1,0 +1,25 @@
+# Python
+*.pyc
+__pycache__/
+.venv/
+.venv-local/
+
+# Data & secrets
+*.toml
+*.csv
+*.json
+*.xlsx
+
+# Dev artifacts
+.DS_Store
+r2.txt
+ignore*
+/media
+/workspace
+
+# Claude Code runtime (agents/ and CLAUDE.md are tracked)
+.claude/skills/
+.claude/worktrees/
+.claude/plans/
+.claude/projects/
+.claude/agents/

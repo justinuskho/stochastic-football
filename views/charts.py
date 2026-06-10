@@ -48,34 +48,17 @@ def plot_matchup(h_name, a_name, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form,
     return fig
 
 
-def plot_performance_moving_avg(agg_losses, penalty, engine_user_name='Engine', window=21):
-    df = agg_losses.copy()
-    df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values(['user', 'date'])
-
-    rolling_data = (
-        df.set_index('date')
-        .groupby('user')[['total_loss', 'n_preds']]
-        .rolling(f'{window}D', min_periods=1)
-        .sum()
-        .reset_index()
-    )
-    rolling_data['n_max'] = rolling_data['date'].map(rolling_data.groupby('date').n_preds.max())
-    rolling_data['moving_avg_loss'] = (
-        rolling_data['total_loss'] + (rolling_data['n_max'] - rolling_data['n_preds']) * penalty
-    ) / rolling_data['n_max']
-
-    df = df.merge(rolling_data[['date', 'user', 'moving_avg_loss']], on=['user', 'date'])
-
-    max_date = df['date'].max()
-    plot_df = df[df['date'] >= max_date - timedelta(days=45)]
+def plot_rolling_score(rolling_df, engine_user_name='Engine'):
+    plot_df = rolling_df.copy()
+    plot_df['date'] = pd.to_datetime(plot_df['date'])
+    plot_df = plot_df.sort_values(['user', 'n_preds_rolling'])
 
     if plot_df.empty:
         return "Not enough data to plot trailing average."
-
-    final_scores = plot_df.groupby('user').tail(1)
+    
+    final_scores = plot_df[plot_df.n_preds_rolling >= 10].groupby('user').tail(1)
     human_scores = final_scores[final_scores['user'] != engine_user_name]
-    top_3_users = human_scores.nsmallest(3, 'moving_avg_loss')['user'].tolist()
+    top_3_users = human_scores.nsmallest(3, 'loss_per_game_rolling')['user'].tolist()
 
     fig = go.Figure()
     colors = {'engine': '#FF4B4B', 'top3': ['#00FFCC', '#007BFF', '#7A5FFF'], 'other': 'rgba(224,224,224,0.4)'}
@@ -100,17 +83,17 @@ def plot_performance_moving_avg(agg_losses, penalty, engine_user_name='Engine', 
 
         fig.add_trace(go.Scatter(
             x=user_data['date'],
-            y=user_data['moving_avg_loss'],
+            y=user_data['loss_per_game_rolling'],
             mode='lines+markers' if (is_engine or is_top3) else 'lines',
             name=user,
             line=dict(color=color, width=width),
             showlegend=(is_engine or is_top3),
-            hovertemplate=f"<b>{user}</b><br>21-Day Avg Loss: %{{y:.3f}}<extra></extra>"
+            hovertemplate=f"<b>{user}</b><br>Rolling Score: %{{y:.3f}}<extra></extra>"
         ))
 
         if is_engine or is_top3:
             fig.add_annotation(
-                x=last_row['date'], y=last_row['moving_avg_loss'],
+                x=last_row['date'], y=last_row['loss_per_game_rolling'],
                 text=label, showarrow=False, xanchor='left', yanchor='middle', xshift=10,
                 font=dict(color=color, size=12)
             )
@@ -122,7 +105,7 @@ def plot_performance_moving_avg(agg_losses, penalty, engine_user_name='Engine', 
         font=dict(color="black"),
         dragmode=False,
         xaxis=dict(gridcolor='rgba(136,136,136,0.2)', zeroline=False, automargin=True),
-        yaxis=dict(gridcolor='rgba(136,136,136,0.2)', zeroline=False, automargin=True, title="Weighted Loss (21D)"),
+        yaxis=dict(gridcolor='rgba(136,136,136,0.2)', zeroline=False, automargin=True, title="Rolling Score"),
         margin=dict(t=50, b=50),
         hovermode="x unified",
         showlegend=False
