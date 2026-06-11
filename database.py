@@ -39,11 +39,11 @@ client = get_bq_client()
 # 2. CACHED QUERY UTILITIES
 # ==========================================
 
-@st.cache_data(ttl=360)
+@st.cache_data(ttl=360, show_spinner=False)
 def query2dict(_client, query):
     """
     Executes a query and returns a list of dictionaries.
-    Caching (1200s) prevents redundant API calls and saves BigQuery costs.
+    Caching (360s) prevents redundant API calls and saves BigQuery costs.
     """
     query_job = _client.query(query)
     rows_raw = query_job.result()
@@ -51,7 +51,7 @@ def query2dict(_client, query):
     return [dict(row) for row in rows_raw]
 
 
-@st.cache_data(ttl=360)
+@st.cache_data(ttl=360, show_spinner=False)
 def query2df(_client, query):
     """
     Helper function to wrap query results into a Pandas DataFrame.
@@ -265,6 +265,51 @@ def fetch_predictions(fixture_id_list):
         GROUP BY 1, 2, 3, 4, 5
         """
     )
+        
+def fetch_prediction_losses_n(season="2025-2026", best_or_worst="best", n=5):
+    """
+    Retrieves the top or bottom n predictions (highest or lowest log-loss) made by users for the specified season, along with match details and prediction info.
+    """
+    if best_or_worst not in ["best", "worst"]:
+        raise ValueError("best_or_worst must be either 'best' or 'worst'")
+    
+    return query2df(
+        client,
+        f"""
+            WITH
+                {best_or_worst}_n AS (
+                    SELECT
+                        *,
+                        SUBSTR(prediction_id, 1, 20) fixture_id,
+                        SUBSTR(prediction_id, 22, 20) user
+                    FROM `project-ceb11233-5e37-4a52-b27.public.prediction_losses`
+                    WHERE
+                        is_user 
+                        AND is_latest
+                        AND loss > 0
+                        AND prediction_id LIKE '{season}%'
+                    ORDER BY loss { 'DESC' if best_or_worst == 'worst' else 'ASC' }
+                    LIMIT {n}
+                )
+            SELECT
+                home,
+                away,
+                f.round gameweek,
+                CASE 
+                    WHEN f.home_score > f.away_score THEN 'Home Win'
+                    WHEN f.home_score = f.away_score THEN 'Draw'
+                    WHEN f.home_score < f.away_score THEN 'Away Win'
+                END result,
+                b.user user,
+                CONCAT(ROUND(p.p_win_home * 100, 0), '-', ROUND(p.p_draw_home * 100, 0), '-', ROUND(p.p_loss_home * 100, 0)) prediction,
+                ROUND(b.loss, 3) score
+            FROM {best_or_worst}_n b
+            LEFT JOIN `project-ceb11233-5e37-4a52-b27.public.predictions` p
+                ON b.prediction_id = p.prediction_id
+            LEFT JOIN `project-ceb11233-5e37-4a52-b27.public.fixtures` f
+                ON b.fixture_id = f.id
+        """
+    )
     
 def push_prediction(data):
     table_id = "project-ceb11233-5e37-4a52-b27.public.predictions"
@@ -275,7 +320,7 @@ def push_prediction(data):
     if errors != []:
         raise Exception(f"BigQuery Insert Errors: {errors}")
     
-# @st.cache_data(ttl=10080, show_spinner=False)
+@st.cache_data(ttl=10080, show_spinner=False)
 def push_params(df, project_id="project-ceb11233-5e37-4a52-b27"):
     client = bigquery.Client(project=project_id)
     staging_table = f"{project_id}.stage.params_app"

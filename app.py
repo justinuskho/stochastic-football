@@ -8,7 +8,7 @@ from engine import run_simulation
 import database as db
 from views.context import AppContext
 from views.free_play import render_free_play
-from views.prediction import render_prediction, build_prediction_context
+from views.prediction import render_prediction
 from views.dashboard import render_dashboard
 
 # ==========================================
@@ -111,12 +111,10 @@ ctx = AppContext(
 
 if app_mode == "Free Play":
     render_free_play(ctx)
+elif app_mode == "Dashboard":
+    render_dashboard(ctx)
 else:
-    pctx = build_prediction_context(ctx)
-    if app_mode == "Dashboard":
-        render_dashboard(ctx, pctx)
-    else:
-        render_prediction(ctx, pctx)
+    render_prediction(ctx)
 
 # ==========================================
 # 5. TEARDOWN — push param snapshots to BQ

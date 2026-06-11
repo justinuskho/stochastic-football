@@ -1,19 +1,21 @@
-import pandas as pd
 import streamlit as st
 import database as db
-from views.context import AppContext, PredictionContext
+from views.context import AppContext
 from views.charts import plot_rolling_score
 
 
-def render_dashboard(ctx: AppContext, pctx: PredictionContext) -> None:
+def render_dashboard(ctx: AppContext) -> None:
     st.markdown('<div class="dashboard-mode">', unsafe_allow_html=True)
 
-    lb_raw = db.fetch_leaderboard(season="2025-2026", n_preds_min=10)
+    lb_raw = db.fetch_leaderboard(season="2025-2026", n_preds_min=0)
+    all_benchmarks = ctx.market_suppliers | {'engine'}
+
     human_lb_full = (
-        lb_raw[lb_raw['is_user']]
-        .sort_values('rank_user')[['rank_user', 'user', 'n_preds', 'loss_per_game_adj']]
-        .rename(columns={'rank_user': 'Rank', 'user': 'Username', 'n_preds': 'Predictions', 'loss_per_game_adj': 'Score (Lower is Better)'})
+        lb_raw[lb_raw['is_user'] & (lb_raw['n_preds'] >= 10)]
+        .sort_values('rank_user')[['user', 'n_preds', 'loss_per_game']]
     )
+    human_lb_full['rank'] = human_lb_full.reset_index().index + 1
+    human_lb_full['loss_per_game'] = human_lb_full['loss_per_game'].round(3)
 
     with st.sidebar:
         st.markdown('<div id="sidebar">', unsafe_allow_html=True)
@@ -25,8 +27,8 @@ def render_dashboard(ctx: AppContext, pctx: PredictionContext) -> None:
             st.markdown("### Season Complete")
             st.markdown("The 2025/26 Premier League season has ended. Here's the final standings:")
         for _, row in human_lb_full.head(3).iterrows():
-            medal = ["🥇", "🥈", "🥉"][int(row['Rank']) - 1]
-            st.markdown(f"{medal} **{row['Username']}** — {row['Score (Lower is Better)']:.3f}")
+            medal = ["🥇", "🥈", "🥉"][int(row['rank']) - 1]
+            st.markdown(f"{medal} **{row['user']}** — {row['loss_per_game']:.3f}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     title = "⚽ 2025/26 Premier League Season Final Results" if ctx.fixtures_next.empty else "⚽ 2025/26 Premier League Season — Results So Far"
@@ -35,16 +37,16 @@ def render_dashboard(ctx: AppContext, pctx: PredictionContext) -> None:
 
     # A: Final Leaderboard
     st.markdown("##### Final Leaderboard (Human Players):")
-    st.markdown("###### Only players with >=10 predictions are eligible for the leaderboard.")
-    
-    st.dataframe(human_lb_full, use_container_width=True, hide_index=True)
+    st.markdown("Only players with >=10 predictions are eligible for the leaderboard.")
+    st.dataframe(human_lb_full[['rank', 'user', 'n_preds', 'loss_per_game']].rename(columns={'user': 'Username', 'n_preds': 'Predictions', 'loss_per_game': 'Score (Lower is Better)', 'rank': 'Rank'}), use_container_width=True, hide_index=True)
     st.markdown("---")
 
     # B: Performance chart (humans only)
     st.markdown("##### Season Performance:")
+    st.markdown("This chart shows how your rolling average log-loss evolved over the season compared to other players. The lower the score, the better your predictions were! The top 3 human players are highlighted, along with the benchmark model.")
     rolling_df = db.fetch_rolling_score()
-    rolling_humans = rolling_df[rolling_df['user'].isin(pctx.human_users)]
-    
+    rolling_humans = rolling_df[~rolling_df['user'].isin(all_benchmarks)]
+
     if not rolling_humans.empty:
         st.plotly_chart(
             plot_rolling_score(rolling_humans),
@@ -55,59 +57,54 @@ def render_dashboard(ctx: AppContext, pctx: PredictionContext) -> None:
 
     # C: Human vs Benchmarks
     st.markdown("##### You vs The Benchmarks:")
-    pl_df = pd.DataFrame(pctx.prediction_losses, columns=['fixture_id', 'date', 'user', 'loss'])
-    mean_loss = pl_df.groupby('user')['loss'].mean().round(3).reset_index().rename(columns={'user': 'Source', 'loss': 'Avg Log-Loss'})
     benchmarks_display = {
-        'engine': 'Stochastic Model', 'google': 'Google', 'Google': 'Google',
+        'engine': 'Stochastic Model', 'Engine': 'Stochastic Model', 
+        'google': 'Google', 'Google': 'Google',
         'opta_analyst': 'Opta Analyst', 'OptaAnalyst': 'Opta Analyst'
     }
 
-    bench_rows = mean_loss[mean_loss['Source'].isin(benchmarks_display)].copy()
-    bench_rows['Source'] = bench_rows['Source'].map(benchmarks_display)
-    bench_rows = bench_rows.drop_duplicates('Source').sort_values('Avg Log-Loss')
+    bench_rows = (
+        lb_raw[lb_raw['user'].isin(benchmarks_display)]
+        .copy()
+        .assign(Source=lambda df: df['user'].map(benchmarks_display))
+        .drop_duplicates('Source')
+        .sort_values('loss_per_game')
+        [['Source', 'n_preds', 'loss_per_game']]
+    )
 
-    human_rows = mean_loss[~mean_loss['Source'].isin(pctx.all_benchmarks)].sort_values('Avg Log-Loss').copy()
-    model_score = bench_rows[bench_rows['Source'] == 'Stochastic Model']['Avg Log-Loss'].values
+    model_score = bench_rows[bench_rows['Source'] == 'Stochastic Model']['loss_per_game'].values
+    human_rows = lb_raw[lb_raw['is_user']].sort_values('loss_per_game')[['user', 'n_preds', 'loss_per_game']].copy()
     if len(model_score):
-        human_rows['vs Model'] = human_rows['Avg Log-Loss'].apply(
+        human_rows['vs Model'] = human_rows['loss_per_game'].apply(
             lambda x: '✅ Beats model' if x < model_score[0] else '❌ Behind model'
         )
 
     col_h, col_b = st.columns(2)
     with col_h:
-        st.markdown("###### Human Players")
-        st.dataframe(human_rows.rename(columns={'Source': 'Username'}), use_container_width=True, hide_index=True)
+        st.markdown("###### Players")
+        st.dataframe(human_rows.rename(columns={'user': 'Username', 'n_preds': 'Predictions', 'loss_per_game': 'Score (Lower is Better)'}), use_container_width=True, hide_index=True)
     with col_b:
         st.markdown("###### Benchmarks")
-        st.dataframe(bench_rows, use_container_width=True, hide_index=True)
+        st.dataframe(bench_rows.rename(columns={'n_preds': 'Predictions', 'loss_per_game': 'Score (Lower is Better)'}), use_container_width=True, hide_index=True)
     st.markdown("---")
 
     # D: Best & Worst Predictions
-    fixture_meta = ctx.fixtures[['id', 'round', 'Fixture', 'home_point']].copy()
-    fixture_meta['Result'] = fixture_meta['home_point'].map({3: 'Home Win', 1: 'Draw', 0: 'Away Win'})
+    code_to_name = {v: k for k, v in ctx.TEAMS_LOOKUP.items()}
 
-    pl_humans = pl_df[~pl_df['user'].isin(pctx.all_benchmarks)].copy()
-    pl_humans = pl_humans.merge(fixture_meta.rename(columns={'id': 'fixture_id'}), on='fixture_id', how='left')
+    def add_fixture_col(df):
+        df = df.copy()
+        df.insert(0, 'fixture', df['home'].map(code_to_name) + ' vs ' + df['away'].map(code_to_name))
+        return df.drop(columns=['home', 'away'])
 
-    preds_lookup = ctx.predictions.sort_values('created_utc', ascending=False).drop_duplicates('prediction_id', keep='first')[
-        ['fixture_id', 'user', 'p_win_home', 'p_draw_home', 'p_loss_home']
-    ].copy()
-    preds_lookup['pred_str'] = (preds_lookup[['p_win_home', 'p_draw_home', 'p_loss_home']] * 100).round(0).astype(int).astype(str).apply(
-        lambda r: f"{r['p_win_home']}–{r['p_draw_home']}–{r['p_loss_home']}", axis=1
-    )
-    pl_humans = pl_humans.merge(preds_lookup[['fixture_id', 'user', 'pred_str']], on=['fixture_id', 'user'], how='left')
-
-    best5 = pl_humans.nsmallest(5, 'loss')[['Fixture', 'round', 'Result', 'user', 'pred_str', 'loss']].rename(
-        columns={'Fixture': 'Match', 'round': 'GW', 'user': 'User', 'pred_str': 'Prediction', 'loss': 'Score'})
-    worst5 = pl_humans.nlargest(5, 'loss')[['Fixture', 'round', 'Result', 'user', 'pred_str', 'loss']].rename(
-        columns={'Fixture': 'Match', 'round': 'GW', 'user': 'User', 'pred_str': 'Prediction', 'loss': 'Score'})
+    best5 = add_fixture_col(db.fetch_prediction_losses_n(season="2025-2026", best_or_worst="best", n=5))
+    worst5 = add_fixture_col(db.fetch_prediction_losses_n(season="2025-2026", best_or_worst="worst", n=5))
 
     cb1, cb2 = st.columns(2)
     with cb1:
         st.markdown("##### 🏆 Best Calls:")
-        st.dataframe(best5, use_container_width=True, hide_index=True)
+        st.dataframe(best5[['fixture', 'gameweek', 'result', 'user', 'prediction', 'score']].rename(columns={'fixture': 'Fixture', 'gameweek': 'GW', 'result': 'Result', 'user': 'User', 'prediction': 'Prediction', 'score': 'Score (Lower is Better)'}), use_container_width=True, hide_index=True)
     with cb2:
         st.markdown("##### 💀 Worst Calls:")
-        st.dataframe(worst5, use_container_width=True, hide_index=True)
+        st.dataframe(worst5[['fixture', 'gameweek', 'result', 'user', 'prediction', 'score']].rename(columns={'fixture': 'Fixture', 'gameweek': 'GW', 'result': 'Result', 'user': 'User', 'prediction': 'Prediction', 'score': 'Score (Lower is Better)'}), use_container_width=True, hide_index=True)
 
     st.markdown('</div>', unsafe_allow_html=True)

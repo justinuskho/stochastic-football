@@ -2,51 +2,11 @@ import pandas as pd
 import streamlit as st
 from datetime import datetime, timezone
 import database as db
-from engine import calculate_prediction_losses, calculate_aggregate_losses
-from views.context import AppContext, PredictionContext
+from views.context import AppContext
 # from views.charts import plot_performance_moving_avg
 
 
-def build_prediction_context(ctx: AppContext) -> PredictionContext:
-    prediction_losses = calculate_prediction_losses(
-        predictions_list=(
-            ctx.predictions.sort_values('created_utc', ascending=False)
-            .drop_duplicates('prediction_id', keep='first')
-            [['fixture_id', 'user', 'p_win_home', 'p_draw_home', 'p_loss_home']]
-            .values.tolist()
-        ) + [
-            [f[0], 'engine', f[1], f[2], f[3]]
-            for f in ctx.fixtures[['id', 'p_win', 'p_draw', 'p_loss']].values.tolist()
-        ],
-        results_dict=ctx.fixtures[['id', 'date', 'home_point']].set_index('id', drop=True).transpose().to_dict()
-    )
-    agg_losses_, penalty = calculate_aggregate_losses(prediction_losses, null_guess_probability=ctx.null_guess_probability)
-    agg_losses = pd.DataFrame(columns=['date', 'user', 'total_loss', 'n_preds'], data=agg_losses_)
-
-    all_benchmarks = ctx.market_suppliers | {'engine'}
-    human_users = [u for u in agg_losses['user'].unique() if u not in all_benchmarks]
-
-    leaderboard_df = agg_losses[pd.to_datetime(agg_losses['date']) >= datetime(2026, 2, 6)]
-    n_max = leaderboard_df.groupby('user')['n_preds'].sum().max()
-    if n_max and n_max > 0:
-        leaderboard = pd.DataFrame(
-            columns=['score'],
-            data=((leaderboard_df.groupby('user')['total_loss'].sum() + (n_max - leaderboard_df.groupby('user')['n_preds'].sum()) * penalty) / n_max).round(2)
-        ).sort_values('score').reset_index()
-    else:
-        leaderboard = pd.DataFrame(columns=['user', 'score'])
-
-    return PredictionContext(
-        agg_losses=agg_losses,
-        leaderboard=leaderboard,
-        penalty=penalty,
-        all_benchmarks=all_benchmarks,
-        human_users=human_users,
-        prediction_losses=prediction_losses,
-    )
-
-
-def render_prediction(ctx: AppContext, pctx: PredictionContext) -> None:
+def render_prediction(ctx: AppContext) -> None:
     st.markdown('<div class="prediction-mode">', unsafe_allow_html=True)
 
     if ctx.fixtures_next.empty:
@@ -265,7 +225,10 @@ def render_prediction(ctx: AppContext, pctx: PredictionContext) -> None:
 
     with c2:
         st.markdown("##### Leaderboard:")
-        st.dataframe(
-            pctx.leaderboard.rename(columns={'user': 'Username', 'score': 'Score (Lower is Better)'}),
-            use_container_width=True, hide_index=True
+        lb_raw = db.fetch_leaderboard(season="2025-2026", n_preds_min=10)
+        leaderboard = (
+            lb_raw[lb_raw['is_user']]
+            .sort_values('loss_per_game_adj')[['user', 'loss_per_game_adj']]
+            .rename(columns={'user': 'Username', 'loss_per_game_adj': 'Score (Lower is Better)'})
         )
+        st.dataframe(leaderboard, use_container_width=True, hide_index=True)

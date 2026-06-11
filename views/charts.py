@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import plotly.graph_objects as go
-from datetime import timedelta
 
 
 def plot_matchup(h_name, a_name, h_elo, a_elo, h_sigma, a_sigma, h_form, a_form, h_hfa, mode="Free Play"):

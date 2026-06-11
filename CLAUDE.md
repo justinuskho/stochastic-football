@@ -39,6 +39,7 @@ Each view is a self-contained module. Per-view agent docs live in `.claude/agent
 
 | File | Function | Agent doc |
 |---|---|---|
+| [engine.py](engine.py) | `get_dynamic_drift`, `run_simulation`, `params_season_refresh` | [data-modeler.md](.claude/agents/data-modeler.md) |
 | [views/context.py](views/context.py) | `AppContext`, `PredictionContext` dataclasses | — |
 | [views/charts.py](views/charts.py) | `plot_matchup`, `plot_performance_moving_avg` | — |
 | [views/free_play.py](views/free_play.py) | `render_free_play(ctx)` | [free_play.md](.claude/agents/free_play.md) |
